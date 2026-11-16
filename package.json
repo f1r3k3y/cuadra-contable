@@ -1,0 +1,25 @@
+{
+  "name": "cuadra-contable",
+  "version": "1.0.0",
+  "description": "Software contable y de facturaci\u00f3n electr\u00f3nica para Chile",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:sql": "./tests/sql/run.sh"
+  },
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "@types/node-forge": "^1.3.14",
+    "@xmldom/xmldom": "^0.9.12",
+    "node-forge": "^1.4.3",
+    "typescript": "^5.9.3",
+    "vitest": "^2.1.9",
+    "xml-crypto": "^6.4.0"
+  },
+  "private": true,
+  "type": "module"
+}
