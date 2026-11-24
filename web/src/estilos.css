@@ -59,15 +59,16 @@ fieldset { border: 0; padding: 0; margin: 0; display: grid; gap: 12px; }
 
 /* Marco */
 .marco { display: grid; grid-template-columns: 240px minmax(0, 1fr); min-height: 100%; }
-.lateral { background: var(--tinta); color: var(--fondo); padding: 20px 16px; display: flex; flex-direction: column; gap: 18px; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
-.lateral .selector { color: #a8a198; }
-.lateral select { background: #2b2824; border-color: #3a3631; color: #ece8e2; }
+.lateral { background: #ffffff; color: #171513; border-inline-end: 1px solid #d4cfc7; padding: 20px 16px; display: flex; flex-direction: column; gap: 18px; position: sticky; top: 0; height: 100vh; overflow-y: auto; color-scheme: light; }
+.lateral .selector { color: #5f5a53; }
+.lateral select { background: #ffffff; border-color: #c9c3ba; color: #171513; }
 .lateral nav { display: grid; gap: 2px; }
-.lateral nav a { color: #d8d3cb; text-decoration: none; padding: 9px 12px; border-radius: var(--r); }
-.lateral nav a:hover { background: #2b2824; }
+.lateral nav a { color: #171513; text-decoration: none; padding: 9px 12px; border-radius: var(--r); font-weight: 500; }
+.lateral nav a:hover { background: #f1eee9; }
 .lateral nav a.active { background: var(--ladrillo); color: #fff; }
-.pie-lateral { margin-top: auto; font-size: 13px; overflow-wrap: anywhere; }
-.pie-lateral .enlace { color: #f39b8a; padding-inline: 0; }
+.pie-lateral { margin-top: auto; font-size: 13px; overflow-wrap: anywhere; color: #171513; }
+.pie-lateral .chico { color: #5f5a53; }
+.pie-lateral .enlace { color: var(--ladrillo); padding-inline: 0; }
 .boton-menu { display: none; margin-bottom: 12px; }
 main { padding: clamp(16px, 3vw, 36px); }
 .hoja { max-width: 1240px; margin: 0 auto; }
