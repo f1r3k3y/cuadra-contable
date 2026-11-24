@@ -18,7 +18,7 @@ export function Login() {
         const { error } = await sb.auth.signInWithPassword({ email: correo.trim(), password: clave });
         if (error) throw new Error('Correo o contraseña incorrectos.');
       } else if (modo === 'registro') {
-        if (clave.length < 12) throw new Error('Usa una contraseña de al menos 12 caracteres.');
+        if (clave.length < 12 || !/[a-zA-Z]/.test(clave) || !/\d/.test(clave)) throw new Error('Usa al menos 12 caracteres, con letras y números.');
         const { error } = await sb.auth.signUp({ email: correo.trim(), password: clave, options: { data: { nombre: nombre.trim() } } });
         if (error) throw error;
         setMsg({ ok: true, t: 'Te enviamos un correo para confirmar la cuenta. Luego entra con tu contraseña.' });
@@ -122,7 +122,7 @@ export function NuevaClave({ alListo }) {
   const [error, setError] = useState(null);
   async function guardar(e) {
     e.preventDefault();
-    if (clave.length < 12) return setError('Al menos 12 caracteres.');
+    if (clave.length < 12 || !/[a-zA-Z]/.test(clave) || !/\d/.test(clave)) return setError('Usa al menos 12 caracteres, con letras y números.');
     const { error } = await sb.auth.updateUser({ password: clave });
     if (error) return setError(error.message);
     alListo();

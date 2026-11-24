@@ -5,7 +5,7 @@
 export const AYUDAS = {
   // Acceso
   'correo': 'Correo electrónico con el que te registraste. Es tu nombre de usuario.',
-  'contraseña': 'Al crear la cuenta usa al menos 12 caracteres. No la compartas: cada persona debe tener su propio usuario para que la auditoría identifique quién hizo cada cosa.',
+  'contraseña': 'Al crear la cuenta usa al menos 12 caracteres, con letras y números. No la compartas: cada persona debe tener su propio usuario para que la auditoría identifique quién hizo cada cosa.',
   'nombre': 'Nombre que verán los demás usuarios y que aparecerá en la auditoría.',
 
   // Menú lateral
