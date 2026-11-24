@@ -108,7 +108,7 @@ export function DosPasos({ alListo }) {
         ) : (
           <p>Ingresa el código de 6 dígitos de tu app de autenticación.</p>
         )}
-        <label>Código<input inputMode="numeric" autoComplete="one-time-code" pattern="\d{6}" maxLength={6} value={codigo} onChange={(e) => setCodigo(e.target.value)} required autoFocus /></label>
+        <label data-ayuda="Código de 6 dígitos que muestra tu app de autenticación (Google Authenticator, Microsoft Authenticator u otra). Cambia cada 30 segundos.">Código<input inputMode="numeric" autoComplete="one-time-code" pattern="\d{6}" maxLength={6} value={codigo} onChange={(e) => setCodigo(e.target.value)} required autoFocus /></label>
         {error && <p className="aviso error">{error}</p>}
         <button className="primario" disabled={!factor}>Verificar</button>
         <button type="button" className="enlace" onClick={() => sb.auth.signOut()}>Salir</button>

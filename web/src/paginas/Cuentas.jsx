@@ -83,8 +83,8 @@ export default function Cuentas() {
       {nueva && (
         <form className="formulario rejilla" onSubmit={crear}>
           <label>Código<input value={nueva.codigo} onChange={(e) => setNueva({ ...nueva, codigo: e.target.value })} pattern="\d+(\.\d+)*" placeholder="5.2.10" required /></label>
-          <label className="ancho">Nombre<input value={nueva.nombre} onChange={(e) => setNueva({ ...nueva, nombre: e.target.value })} required maxLength={120} /></label>
-          <label>Tipo<select value={nueva.tipo} onChange={(e) => setNueva({ ...nueva, tipo: e.target.value, clasificacion: CLASIF[e.target.value][0] })}>
+          <label className="ancho" data-ayuda="Nombre descriptivo de la cuenta (ej.: Banco Estado cuenta corriente, Arriendos).">Nombre<input value={nueva.nombre} onChange={(e) => setNueva({ ...nueva, nombre: e.target.value })} required maxLength={120} /></label>
+          <label data-ayuda="Naturaleza de la cuenta: activo, pasivo, patrimonio, ingreso, gasto u orden. Define si es de balance o de resultado.">Tipo<select value={nueva.tipo} onChange={(e) => setNueva({ ...nueva, tipo: e.target.value, clasificacion: CLASIF[e.target.value][0] })}>
             {TIPOS.map((t) => <option key={t} value={t}>{bonito(t)}</option>)}</select></label>
           <label>Clasificación<select value={nueva.clasificacion} onChange={(e) => setNueva({ ...nueva, clasificacion: e.target.value })}>
             {CLASIF[nueva.tipo].map((t) => <option key={t} value={t}>{bonito(t)}</option>)}</select></label>

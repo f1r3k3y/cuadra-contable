@@ -104,7 +104,7 @@ export default function Asientos() {
         <div className="formulario">
           <div className="rejilla">
             <label>Fecha<input type="date" value={nuevo.fecha} onChange={(e) => setNuevo({ ...nuevo, fecha: e.target.value })} /></label>
-            <label>Tipo<select value={nuevo.tipo} onChange={(e) => setNuevo({ ...nuevo, tipo: e.target.value })}>
+            <label data-ayuda="Clase de comprobante: ingreso (entra dinero), egreso (sale dinero), traspaso (sin movimiento de caja, ej. provisiones o ajustes) o apertura (saldos iniciales).">Tipo<select value={nuevo.tipo} onChange={(e) => setNuevo({ ...nuevo, tipo: e.target.value })}>
               <option value="traspaso">Traspaso</option><option value="ingreso">Ingreso</option><option value="egreso">Egreso</option><option value="apertura">Apertura</option>
             </select></label>
             <label className="ancho">Glosa<input value={nuevo.glosa} onChange={(e) => setNuevo({ ...nuevo, glosa: e.target.value })} maxLength={500} required /></label>

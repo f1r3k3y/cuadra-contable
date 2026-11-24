@@ -113,7 +113,7 @@ export default function Tesoreria() {
           <h2>Cobros y pagos registrados</h2>
           <div className="scroll">
             <table className="tabla">
-              <thead><tr><th>Fecha</th><th>Tipo</th><th>Documento</th><th>Cuenta</th><th>Medio</th><th className="n">Monto</th><th></th></tr></thead>
+              <thead><tr><th>Fecha</th><th data-ayuda="Cobro: dinero recibido de un cliente. Pago: dinero entregado a un proveedor.">Tipo</th><th>Documento</th><th>Cuenta</th><th>Medio</th><th className="n">Monto</th><th></th></tr></thead>
               <tbody>
                 {movs.length === 0 && <tr><td colSpan={7} className="vacio">Aún no hay movimientos.</td></tr>}
                 {movs.map((m) => (

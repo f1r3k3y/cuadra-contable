@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useEmpresa } from '../App';
 import { q, rpc, sb } from '../supabase';
 import { TIPOS_DOC, hoy, num, peso } from '../util';
+import { AYUDA_F29 } from '../ayudas';
 
 const LINEAS = [
   ['538', 'Total débitos fiscales', true],
@@ -51,9 +52,9 @@ export default function F29() {
         <>
           <div className="dos-columnas">
             <table className="tabla estado">
-              <thead><tr><th>Código</th><th>Concepto</th><th className="n">Monto</th></tr></thead>
+              <thead><tr><th data-ayuda="Número de la línea en el Formulario 29 del SII.">Código</th><th>Concepto</th><th className="n">Monto</th></tr></thead>
               <tbody>{LINEAS.map(([c, t, m]) => (
-                <tr key={c} className={['89', '91'].includes(c) ? 'total' + (c === '91' ? ' fuerte' : '') : ''}>
+                <tr key={c} data-ayuda={AYUDA_F29[c]} className={['89', '91'].includes(c) ? 'total' + (c === '91' ? ' fuerte' : '') : ''}>
                   <td>{c}</td><td>{t}</td><td className="n">{m ? peso(p.lineas[c]) : num(p.lineas[c]).replace('.', ',')}</td></tr>
               ))}</tbody>
             </table>
