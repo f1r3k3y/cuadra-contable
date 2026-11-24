@@ -36,6 +36,7 @@ npm run dev                    # http://localhost:5173
 | Propuesta F29 | Códigos 538, 537, 504, 89, 77, 563, 115, 62 y 91, con el remanente arrastrado del mes anterior |
 | Plan de cuentas | Árbol de cuentas, alta de cuentas y elección de las cuentas automáticas (clientes, proveedores, IVA, etc.) |
 | Ver la app como (solo admin) | Selector en el menú lateral para actuar como contador, operador, auditor o lector. La base de datos aplica de verdad los permisos de ese rol; "Volver a Administrador" siempre funciona y cada cambio queda auditado |
+| Auditoría (admin y auditor) | Todos los cambios con fecha, hora, usuario (nombre y correo), IP, módulo y descripción; detalle campo por campo antes/después con hash; ingresos y salidas de usuarios; filtros por fecha, usuario, módulo, acción y texto; actividad por usuario; exportación CSV y verificación de integridad de la cadena |
 | Empresa y usuarios | Datos de la empresa, roles (admin, contador, operador, auditor, lector), cierre y reapertura de períodos, y auditoría con verificación de integridad |
 
 ## Roles
@@ -82,6 +83,7 @@ npm ci && npx vitest run      # firma/DTE (versión anterior)
 - `asientos_origen_documentos`: permite los orígenes `documento_venta` y `documento_compra`.
 - `miembros_perfiles_fk`: relación entre miembros y perfiles para mostrar nombres.
 - `roles_nuevos` y `permisos_tesoreria`: roles asistente/tesorero/gerente, matriz de permisos, tabla `pagos`, vista `documentos_saldo`, funciones `registrar_pago`, `anular_pago`, `resumen_tesoreria`, `mis_permisos`, `matriz_permisos`.
+- `auditoria_consulta`: tabla `accesos` (ingresos/salidas auditados), funciones `registrar_acceso`, `auditoria_consulta`, `auditoria_usuarios`.
 - `probar_rol`: columna `miembros.rol_prueba`, función `probar_rol()` y `app.tiene_rol` usando el rol efectivo.
 
 La propuesta de F29 es **referencial**: no incluye el reajuste UTM del remanente, retenciones de honorarios ni otros impuestos. Revísala en sii.cl antes de declarar.

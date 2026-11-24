@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useEmpresa } from '../App';
 import { q, rpc, sb } from '../supabase';
 import { MESES, PERMISOS, ROLES, ROL_DESC, rutFormato } from '../util';
@@ -8,8 +9,6 @@ export default function Empresa() {
   const [datos, setDatos] = useState(null);
   const [miembros, setMiembros] = useState([]);
   const [periodos, setPeriodos] = useState([]);
-  const [auditoria, setAuditoria] = useState(null);
-  const [cadena, setCadena] = useState(null);
   const [invitar, setInvitar] = useState({ correo: '', rol: 'contador' });
   const [msg, setMsg] = useState(null);
   const admin = permite('empresa.editar');
@@ -28,7 +27,6 @@ export default function Empresa() {
     ]);
     setDatos(d); setMiembros(m); setPeriodos(p);
     setMatriz(await rpc('matriz_permisos'));
-    if (audita) setAuditoria(await q(sb.from('auditoria').select('id, tabla, accion, en, usuario_id, ip').eq('empresa_id', empresa.id).order('id', { ascending: false }).limit(40)));
   }, [empresa.id, audita]);
   useEffect(() => { cargar().catch((e) => setMsg({ ok: false, t: e.message })); }, [cargar]);
 
@@ -45,7 +43,6 @@ export default function Empresa() {
   }, 'Datos guardados.');
 
   const set = (k) => (e) => setDatos({ ...datos, [k]: e.target.value });
-  const nombreDe = (id) => miembros.find((m) => m.user_id === id)?.perfiles?.nombre ?? (id ? id.slice(0, 8) : 'sistema');
 
   if (!datos) return <section className="hoja">{msg ? <p className="aviso error">{msg.t}</p> : <p>Cargando…</p>}</section>;
 
@@ -131,22 +128,7 @@ export default function Empresa() {
         </>
       )}
 
-      {audita && auditoria && (
-        <>
-          <h2>Auditoría</h2>
-          <p className="chico">Cada cambio queda encadenado con un hash SHA-256; si alguien altera un registro, la verificación lo detecta.</p>
-          <div className="acciones izq">
-            <button onClick={async () => { try { const r = await rpc('verificar_auditoria', { p_empresa: empresa.id }); setCadena(r == null ? { ok: true, t: 'Cadena íntegra: ningún registro fue alterado.' } : { ok: false, t: 'Inconsistencia en el registro N° ' + r }); } catch (e) { setCadena({ ok: false, t: e.message }); } }}>Verificar integridad</button>
-            {cadena && <span className={cadena.ok ? 'ok-texto' : 'error-texto'}>{cadena.t}</span>}
-          </div>
-          <div className="scroll">
-            <table className="tabla compacta"><thead><tr><th className="n">N°</th><th>Fecha</th><th>Tabla</th><th>Acción</th><th>Usuario</th><th>IP</th></tr></thead>
-              <tbody>{auditoria.map((a) => (
-                <tr key={a.id}><td className="n">{a.id}</td><td className="nw">{new Date(a.en).toLocaleString('es-CL')}</td><td>{a.tabla}</td><td>{a.accion}</td><td>{nombreDe(a.usuario_id)}</td><td>{a.ip ?? ''}</td></tr>
-              ))}</tbody></table>
-          </div>
-        </>
-      )}
+      {audita && <p className="nota">El registro completo de cambios (quién, qué, cuándo, desde qué IP) está en <Link to="/auditoria">Auditoría</Link>.</p>}
     </section>
   );
 }

@@ -89,6 +89,19 @@ select public.probar_rol((select v from t.ids where k = 'e3'), 'tesorero');
 select t.afirmar('tesoreria.registrar' = any (public.mis_permisos((select v from t.ids where k = 'e3'))) and not ('documentos.registrar' = any (public.mis_permisos((select v from t.ids where k = 'e3')))), 'ver como tesorero cambia los permisos');
 select t.debe_fallar($$select public.registrar_documento((select v from t.ids where k = 'e3'), 'venta', 33, 700, '2026-10-10', '96.790.240-3', 'X', 1000)$$, 'Sin permiso');
 select public.probar_rol((select v from t.ids where k = 'e3'), 'admin');
+
+-- Auditoría: ingresos registrados y consulta por el auditor
+select t.como('00000000-0000-0000-0000-00000000000b');
+select public.registrar_acceso((select v from t.ids where k = 'e3'), 'ingreso');
+select public.registrar_acceso((select v from t.ids where k = 'e3'), 'ingreso');
+select t.debe_fallar($$select * from public.auditoria_consulta((select v from t.ids where k = 'e3'))$$, 'Sin permiso');
+select t.como('00000000-0000-0000-0000-00000000000e');
+select t.afirmar((select count(*) from public.auditoria_consulta((select v from t.ids where k = 'e3'), p_tabla => 'accesos')) = 1, 'ingreso registrado una sola vez');
+select t.afirmar((select usuario_correo from public.auditoria_consulta((select v from t.ids where k = 'e3'), p_tabla => 'pagos', p_accion => 'INSERT') limit 1) = 'beto@ejemplo.cl', 'auditor ve quién registró el pago');
+select t.afirmar((select (antes ->> 'estado') || '>' || (despues ->> 'estado') from public.auditoria_consulta((select v from t.ids where k = 'e3'), p_tabla => 'pagos', p_accion => 'UPDATE', p_texto => 'rebotada') limit 1) = 'vigente>anulado', 'auditor ve el antes y después de la anulación');
+select t.afirmar((select count(*) from public.auditoria_consulta((select v from t.ids where k = 'e3'), p_usuario => '00000000-0000-0000-0000-00000000000f')) > 0, 'filtro por usuario');
+select t.afirmar((select count(*) from public.auditoria_usuarios((select v from t.ids where k = 'e3'))) >= 4, 'listado de usuarios con actividad');
+select t.afirmar(public.verificar_auditoria((select v from t.ids where k = 'e3')) is null, 'la cadena sigue íntegra con los accesos');
 reset role;
 \o
 \echo 'PRUEBAS DE ROLES Y TESORERÍA PASARON'

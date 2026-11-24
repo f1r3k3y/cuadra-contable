@@ -49,7 +49,7 @@ export default function Panel() {
   }
   if (permite('periodos.cerrar') && m.contabilidad.periodosAbiertos > 1) pend.push(['/empresa', m.contabilidad.periodosAbiertos, 'meses abiertos por cerrar']);
   if (permite('f29.ver')) pend.push(['/f29', 'F29', 'revisar la propuesta del mes']);
-  if (permite('auditoria.ver')) pend.push(['/empresa', '✓', 'verificar la integridad de la auditoría']);
+  if (permite('auditoria.ver')) pend.push(['/auditoria', '✓', 'revisar cambios y verificar la auditoría']);
 
   if (!finanzas) {
     return (

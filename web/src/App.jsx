@@ -11,11 +11,20 @@ import Reportes from './paginas/Reportes';
 import F29 from './paginas/F29';
 import Empresa from './paginas/Empresa';
 import Tesoreria from './paginas/Tesoreria';
+import Auditoria from './paginas/Auditoria';
 
 const Ctx = createContext(null);
 export const useEmpresa = () => useContext(Ctx);
 
 const INACTIVIDAD_MIN = 20;
+
+// Cierra sesión dejando constancia en la auditoría
+async function salir() {
+  const emp = sessionStorage.getItem('empresa');
+  if (emp && emp !== '+') { try { await rpc('registrar_acceso', { p_empresa: emp, p_evento: 'salida' }); } catch { /* sin conexión */ } }
+  sessionStorage.clear();
+  await sb.auth.signOut();
+}
 
 export default function App() {
   const [sesion, setSesion] = useState(undefined);
@@ -42,7 +51,7 @@ export default function App() {
   useEffect(() => {
     if (!sesion) return;
     let t;
-    const reiniciar = () => { clearTimeout(t); t = setTimeout(() => sb.auth.signOut(), INACTIVIDAD_MIN * 60000); };
+    const reiniciar = () => { clearTimeout(t); t = setTimeout(() => salir(), INACTIVIDAD_MIN * 60000); };
     const ev = ['mousedown', 'keydown', 'touchstart', 'scroll'];
     ev.forEach((e) => window.addEventListener(e, reiniciar, { passive: true }));
     reiniciar();
@@ -82,6 +91,7 @@ function Espacio({ usuario }) {
     if (!sel0) return;
     setPermisos(null);
     rpc('mis_permisos', { p_empresa: sel0.empresas.id }).then((p) => setPermisos(new Set(p))).catch(() => setPermisos(new Set()));
+    rpc('registrar_acceso', { p_empresa: sel0.empresas.id, p_evento: 'ingreso' }).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [claveRol]);
 
@@ -115,6 +125,7 @@ function Espacio({ usuario }) {
     ['/reportes', 'Libros y estados', 'reportes.ver', <Reportes />],
     ['/f29', 'Propuesta F29', 'f29.ver', <F29 />],
     ['/cuentas', 'Plan de cuentas', 'cuentas.ver', <Cuentas />],
+    ['/auditoria', 'Auditoría', 'auditoria.ver', <Auditoria />],
     ['/empresa', 'Empresa y roles', null, <Empresa />],
   ];
   const visibles = RUTAS.filter(([, , p]) => !p || ctx.permite(p));
@@ -143,7 +154,7 @@ function Espacio({ usuario }) {
           <div className="pie-lateral">
             <div>{usuario.email}</div>
             <div className="chico">{ROLES[rol]}{sel.rol_prueba ? ' (prueba)' : ''} · {rutFormato(sel.empresas.rut)}</div>
-            <button className="enlace" onClick={() => { sessionStorage.clear(); sb.auth.signOut(); }}>Cerrar sesión</button>
+            <button className="enlace" onClick={() => salir()}>Cerrar sesión</button>
           </div>
         </aside>
         <main>

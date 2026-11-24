@@ -100,6 +100,13 @@ main { padding: clamp(16px, 3vw, 36px); }
 .pendientes b { font-size: 22px; font-variant-numeric: tabular-nums; }
 .pendientes span { font-size: 13px; color: var(--suave); }
 
+.dialogo.ancho-detalle { width: min(860px, 100%); max-height: 90vh; overflow-y: auto; }
+.ficha { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 16px; margin: 0; font-size: 14px; }
+.ficha dt { color: var(--suave); }
+.ficha dd { margin: 0; overflow-wrap: anywhere; }
+.detalle-campos code { background: none; padding: 0; font-size: 12.5px; }
+.tabla tr.cambiado td { background: light-dark(#fff3d6, #3a2f12); }
+
 /* Formularios */
 .formulario { background: var(--panel); border: 1px solid var(--linea); border-radius: 8px; padding: 18px; margin-bottom: 18px; display: grid; gap: 12px; }
 .formulario.rejilla, .formulario .rejilla { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; }
@@ -136,7 +143,7 @@ main { padding: clamp(16px, 3vw, 36px); }
 .tabla.estado td { padding: 9px 12px; }
 .tabla tr.total td { font-weight: 700; border-top: 1px solid var(--tinta); }
 .tabla tr.total.fuerte td { border-top: 2px solid var(--tinta); border-bottom: 3px double var(--tinta); font-size: 15px; }
-.etiqueta { display: inline-block; font-size: 12px; padding: 2px 8px; border-radius: 99px; background: var(--fondo); text-decoration: none; }
+.etiqueta { display: inline-block; white-space: nowrap; font-size: 12px; padding: 2px 8px; border-radius: 99px; background: var(--fondo); text-decoration: none; }
 .etiqueta.contabilizado { background: var(--ok-fondo); color: var(--verde); }
 .etiqueta.borrador { background: light-dark(#fff3d6, #3a2f12); color: light-dark(#7a5a00, #f2c96b); }
 .etiqueta.anulado { background: var(--error-fondo); color: var(--ladrillo); }
