@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Crea una base efímera, aplica stubs + migraciones y corre las pruebas SQL.
 set -euo pipefail
+# Las fechas de las pruebas (current_date) deben ser las de Chile, igual que la app.
+export PGTZ=America/Santiago
 DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 DB=cuadra_test
 PSQL="psql -v ON_ERROR_STOP=1 -q -X"

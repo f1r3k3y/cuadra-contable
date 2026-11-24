@@ -78,8 +78,10 @@ function Espacio({ usuario }) {
   const [permisos, setPermisos] = useState(null);
 
   const cargar = useCallback(async () => {
-    const filas = await q(sb.from('miembros').select('rol, rol_prueba, empresas(id, rut, razon_social, tasa_ppm)').eq('user_id', usuario.id));
-    setLista(filas.filter((f) => f.empresas).sort((a, b) => a.empresas.razon_social.localeCompare(b.empresas.razon_social)));
+    const filas = await q(sb.from('miembros').select('rol, rol_prueba, rol_prueba_desde, empresas(id, rut, razon_social, tasa_ppm)').eq('user_id', usuario.id));
+    // El modo "ver como" vence a las 8 horas (la base aplica la misma regla)
+    const vigente = (f) => f.rol_prueba && f.rol_prueba_desde && Date.now() - new Date(f.rol_prueba_desde).getTime() < 8 * 3600e3;
+    setLista(filas.filter((f) => f.empresas).map((f) => ({ ...f, rol_prueba: vigente(f) ? f.rol_prueba : null })).sort((a, b) => a.empresas.razon_social.localeCompare(b.empresas.razon_social)));
   }, [usuario.id]);
   useEffect(() => { cargar(); }, [cargar]);
 

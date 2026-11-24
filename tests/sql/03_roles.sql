@@ -49,8 +49,10 @@ select t.debe_fallar($$select public.registrar_pago((select v from t.ids where k
 select public.registrar_pago((select id from public.documentos where folio = 77 and empresa_id = (select v from t.ids where k = 'e3')), '2026-10-22', 59500, (select id from public.cuentas where empresa_id = (select v from t.ids where k = 'e3') and es_efectivo and imputable order by codigo limit 1));
 select t.afirmar((public.resumen_tesoreria((select v from t.ids where k = 'e3')) -> 'porCobrar' ->> 'total')::numeric = 138000, 'antigüedad de cuentas por cobrar');
 select t.afirmar((public.resumen_tesoreria((select v from t.ids where k = 'e3')) -> 'porPagar' ->> 'total')::numeric = 0, 'compra pagada completa');
-select t.afirmar((select count(*) from public.pagos p join public.asientos a on a.id = p.asiento_id where p.empresa_id = (select v from t.ids where k = 'e3') and a.estado = 'contabilizado') = 2, 'cobros y pagos generan asiento contabilizado');
-select t.afirmar((select sum(debe) - sum(haber) from public.movimientos where empresa_id = (select v from t.ids where k = 'e3')) = 0, 'contabilidad cuadra con tesorería');
+select t.afirmar((select count(*) from public.pagos p where p.empresa_id = (select v from t.ids where k = 'e3') and app.estado_asiento(p.asiento_id) = 'contabilizado') = 2, 'cobros y pagos generan asiento contabilizado');
+reset role;
+select t.afirmar((select sum(debe) - sum(haber) from public.movimientos where empresa_id = (select v from t.ids where k = 'e3')) = 0 and (select count(*) from public.movimientos where empresa_id = (select v from t.ids where k = 'e3')) >= 6, 'contabilidad cuadra con tesorería');
+set role authenticated;
 
 -- Contador no puede anular un documento con cobros
 select t.como('00000000-0000-0000-0000-00000000000f');
@@ -102,6 +104,39 @@ select t.afirmar((select (antes ->> 'estado') || '>' || (despues ->> 'estado') f
 select t.afirmar((select count(*) from public.auditoria_consulta((select v from t.ids where k = 'e3'), p_usuario => '00000000-0000-0000-0000-00000000000f')) > 0, 'filtro por usuario');
 select t.afirmar((select count(*) from public.auditoria_usuarios((select v from t.ids where k = 'e3'))) >= 4, 'listado de usuarios con actividad');
 select t.afirmar(public.verificar_auditoria((select v from t.ids where k = 'e3')) is null, 'la cadena sigue íntegra con los accesos');
+
+-- Fase 1: lecturas segregadas por rol
+select t.como('00000000-0000-0000-0000-00000000000b');
+select t.afirmar((select count(*) from public.asientos where empresa_id = (select v from t.ids where k = 'e3')) = 0, 'tesorero no lee asientos');
+select t.afirmar((select count(*) from public.libro_diario((select v from t.ids where k = 'e3'), '2026-01-01', '2026-12-31')) = 0, 'tesorero no lee el libro diario');
+select t.afirmar((select asiento_estado from public.documentos_saldo where id = (select v from t.ids where k = 'doc')) = 'contabilizado', 'tesorero ve si el documento está aprobado');
+select t.afirmar((public.resumen_tesoreria((select v from t.ids where k = 'e3')) -> 'cuentas' -> 0 ->> 'saldo')::numeric <> 0, 'tesorero ve saldos de caja');
+select t.afirmar((select count(*) from public.pagos where empresa_id = (select v from t.ids where k = 'e3')) > 0, 'tesorero lee pagos');
+select t.como('00000000-0000-0000-0000-00000000000a');
+select t.afirmar((select count(*) from public.pagos where empresa_id = (select v from t.ids where k = 'e3')) = 0, 'asistente no lee movimientos de tesorería');
+select t.afirmar((select pagado from public.documentos_saldo where folio = 77 and empresa_id = (select v from t.ids where k = 'e3')) = 59500, 'asistente ve cuánto se pagó del documento');
+select t.afirmar((select count(*) from public.miembros where empresa_id = (select v from t.ids where k = 'e3')) = 1, 'asistente solo ve su propia membresía');
+select t.debe_fallar($$select public.propuesta_f29((select v from t.ids where k = 'e3'), '202610')$$, 'Sin permiso');
+select t.debe_fallar($$select public.resumen_tesoreria((select v from t.ids where k = 'e3'))$$, 'Sin permiso');
+select t.como('00000000-0000-0000-0000-00000000000d');
+select t.afirmar(public.propuesta_f29((select v from t.ids where k = 'e3'), '202610') is not null, 'gerencia ve el F29');
+select t.afirmar((select count(*) from public.libro_diario((select v from t.ids where k = 'e3'), '2026-01-01', '2026-12-31')) > 0, 'gerencia lee los libros');
+
+-- Fase 1: ver como vence a las 8 horas y se apaga al salir
+select t.como('00000000-0000-0000-0000-00000000000c');
+select public.probar_rol((select v from t.ids where k = 'e3'), 'tesorero');
+reset role;
+update public.miembros set rol_prueba_desde = now() - interval '9 hours' where user_id = '00000000-0000-0000-0000-00000000000c' and empresa_id = (select v from t.ids where k = 'e3');
+set role authenticated;
+select t.afirmar('usuarios.gestionar' = any (public.mis_permisos((select v from t.ids where k = 'e3'))), 'ver como vencido vuelve a administrador');
+select public.probar_rol((select v from t.ids where k = 'e3'), 'lector');
+select public.registrar_acceso((select v from t.ids where k = 'e3'), 'ingreso');
+select public.registrar_acceso((select v from t.ids where k = 'e3'), 'salida');
+select public.registrar_acceso((select v from t.ids where k = 'e3'), 'salida');
+select t.afirmar((select rol_prueba from public.miembros where user_id = auth.uid() and empresa_id = (select v from t.ids where k = 'e3')) is null, 'cerrar sesión apaga ver como');
+reset role;
+select t.afirmar((select count(*) from public.accesos where usuario_id = '00000000-0000-0000-0000-00000000000c' and evento = 'salida') = 1, 'una sola salida por ingreso');
+set role authenticated;
 reset role;
 \o
 \echo 'PRUEBAS DE ROLES Y TESORERÍA PASARON'

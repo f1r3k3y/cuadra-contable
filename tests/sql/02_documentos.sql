@@ -49,7 +49,7 @@ select t.debe_fallar($$select public.registrar_documento((select v from t.ids wh
 select t.como('00000000-0000-0000-0000-00000000000a');
 select t.afirmar((select count(*) from public.documentos where empresa_id = (select v from t.ids where k = 'e2')) = 0, 'otra empresa no ve los documentos');
 select t.debe_fallar($$select public.registrar_documento((select v from t.ids where k = 'e2'), 'venta', 33, 301, '2026-10-05', '96.790.240-3', 'X', 1000)$$, 'Sin permiso');
-select t.debe_fallar($$select public.propuesta_f29((select v from t.ids where k = 'e2'), '202610')$$, 'Sin acceso');
+select t.debe_fallar($$select public.propuesta_f29((select v from t.ids where k = 'e2'), '202610')$$, 'Sin permiso');
 
 -- Modo probar rol (carla es admin real de e2)
 select t.como('00000000-0000-0000-0000-00000000000c');
