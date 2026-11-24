@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { sb } from './supabase';
+import Turnstile from './Turnstile';
 
 export function Login() {
   const [modo, setModo] = useState('entrar');
@@ -8,6 +9,9 @@ export function Login() {
   const [nombre, setNombre] = useState('');
   const [msg, setMsg] = useState(null);
   const [ocupado, setOcupado] = useState(false);
+  const [captcha, setCaptcha] = useState(null);
+  const [reinicio, setReinicio] = useState(0);
+  const captchaToken = captcha && captcha !== 'sin-captcha' ? captcha : undefined;
 
   async function enviar(e) {
     e.preventDefault();
@@ -15,16 +19,16 @@ export function Login() {
     setOcupado(true);
     try {
       if (modo === 'entrar') {
-        const { error } = await sb.auth.signInWithPassword({ email: correo.trim(), password: clave });
+        const { error } = await sb.auth.signInWithPassword({ email: correo.trim(), password: clave, options: { captchaToken } });
         if (error) throw new Error('Correo o contraseña incorrectos.');
       } else if (modo === 'registro') {
         if (clave.length < 12 || !/[a-zA-Z]/.test(clave) || !/\d/.test(clave)) throw new Error('Usa al menos 12 caracteres, con letras y números.');
-        const { error } = await sb.auth.signUp({ email: correo.trim(), password: clave, options: { data: { nombre: nombre.trim() } } });
+        const { error } = await sb.auth.signUp({ email: correo.trim(), password: clave, options: { data: { nombre: nombre.trim() }, captchaToken } });
         if (error) throw error;
         setMsg({ ok: true, t: 'Te enviamos un correo para confirmar la cuenta. Luego entra con tu contraseña.' });
         setModo('entrar');
       } else {
-        const { error } = await sb.auth.resetPasswordForEmail(correo.trim(), { redirectTo: window.location.origin });
+        const { error } = await sb.auth.resetPasswordForEmail(correo.trim(), { redirectTo: window.location.origin, captchaToken });
         if (error) throw error;
         setMsg({ ok: true, t: 'Si el correo existe, recibirás un enlace para cambiar la contraseña.' });
       }
@@ -32,6 +36,7 @@ export function Login() {
       setMsg({ ok: false, t: err.message });
     } finally {
       setOcupado(false);
+      setReinicio((n) => n + 1); // cada token de verificación sirve una sola vez
     }
   }
 
@@ -49,8 +54,9 @@ export function Login() {
             <input type="password" autoComplete={modo === 'registro' ? 'new-password' : 'current-password'} value={clave} onChange={(e) => setClave(e.target.value)} required minLength={modo === 'registro' ? 12 : 1} />
           </label>
         )}
+        <Turnstile accion={modo === 'entrar' ? 'login' : modo === 'registro' ? 'signup' : 'recuperar'} alToken={setCaptcha} reinicio={reinicio} />
         {msg && <p className={msg.ok ? 'aviso ok' : 'aviso error'} role={msg.ok ? 'status' : 'alert'}>{msg.t}</p>}
-        <button className="primario" disabled={ocupado}>{ocupado ? 'Un momento…' : 'Continuar'}</button>
+        <button className="primario" disabled={ocupado || !captcha}>{ocupado ? 'Un momento…' : !captcha ? 'Verificando…' : 'Continuar'}</button>
         <div className="enlaces">
           {modo !== 'entrar' && <button type="button" className="enlace" onClick={() => setModo('entrar')}>Ya tengo cuenta</button>}
           {modo !== 'registro' && <button type="button" className="enlace" onClick={() => setModo('registro')}>Crear cuenta</button>}

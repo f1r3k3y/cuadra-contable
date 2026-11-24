@@ -205,3 +205,6 @@ label[data-ayuda] :is(input, select) { cursor: auto; }
 .ayuda-flotante { position: fixed; z-index: 100; background: #171513; color: #f5f2ed; font-size: 13.5px; line-height: 1.45; padding: 9px 12px; border-radius: 6px; box-shadow: 0 8px 24px #0004; pointer-events: none; animation: aparecer .12s ease-out; }
 @keyframes aparecer { from { opacity: 0; transform: translateY(-2px); } }
 @media (prefers-reduced-motion: reduce) { .ayuda-flotante { animation: none; } }
+
+/* Verificación anti-bots (Turnstile) en el acceso */
+.turnstile { min-height: 65px; display: flex; justify-content: center; }
