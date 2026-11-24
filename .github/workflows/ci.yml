@@ -21,4 +21,4 @@ jobs:
       - run: ./tests/sql/run.sh
       - run: deno check --config supabase/functions/deno.json supabase/functions/cuadra/index.ts
       - run: cd web && npm ci && npm run build
-        env: { VITE_SUPABASE_URL: https://example.supabase.co, VITE_SUPABASE_ANON_KEY: ci }
+        env: { VITE_SUPABASE_URL: https://example.supabase.co, VITE_SUPABASE_KEY: ci }

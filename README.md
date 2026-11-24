@@ -1,86 +1,69 @@
-# Cuadra Contable
+# Cuadra Contable — versión simple
 
-Software contable y de facturación electrónica para empresas en Chile: multiempresa, contabilidad por partida doble, conexión directa con el Servicio de Impuestos Internos (SII), seguridad por diseño y panel de métricas.
+Contabilidad web para empresas chilenas: plan de cuentas, asientos, compras y ventas con IVA, libros, balances, estado de resultados, propuesta de F29, varias empresas por cuenta y usuarios con roles.
 
-> "Cuadra" es una marca ficticia del proyecto.
+- **Backend:** Supabase (proyecto `cuadra-contable`, ya migrado). Toda la lógica contable y de permisos vive en la base de datos.
+- **Frontend:** React 18 + Vite (`web/`), pensado para publicarse en Cloudflare Pages.
+- **SII:** no hay conexión directa en esta versión. Los documentos se ingresan a mano. El código de DTE de la versión anterior (`supabase/functions/`, `tests/sii.test.ts`, `docs/certificacion-sii.md`) y sus tablas se conservan sin uso, para retomarlo más adelante.
 
-## Qué incluye
+## Cómo levantarlo
 
-| Módulo | Funcionalidad |
-|---|---|
-| **Contabilidad** | Plan de cuentas jerárquico (base PYME chilena), comprobantes de ingreso, egreso y traspaso, numeración correlativa por año, anulación y reverso, cierre y reapertura de períodos, centros de costo, auxiliares de clientes y proveedores |
-| **Libros** | Libro diario, libro mayor con saldo acumulado, balance tributario de 8 columnas, libros de compras y ventas |
-| **Estados financieros** | Estado de resultados y balance general |
-| **Facturación electrónica (DTE)** | Emisión de factura (33), factura exenta (34), boleta (39/41), guía de despacho (52), notas de débito (56) y de crédito (61): timbre (TED) con CAF, firma XMLDSig, envío al SII, consulta de estado, representación impresa con PDF417 |
-| **Recepción** | Importación del XML de proveedores, acuse de recepción (RespuestaDTE), aceptación o reclamo en el SII (Ley 19.983) y recibo de mercaderías (EnvioRecibos) |
-| **RCV** | Sincronización del Registro de Compras y Ventas (producción) o importación del CSV de sii.cl, con cuadratura contra la contabilidad |
-| **F29** | Propuesta de IVA y PPM calculada desde los libros (códigos 502, 503, 509, 510, 520, 537, 538, 89, 77, 62, 91…) |
-| **Métricas** | Ventas, resultado, márgenes, liquidez, prueba ácida, endeudamiento, capital de trabajo, días de cobro y pago, flujo de caja, principales clientes, proveedores y gastos, alertas de plazos SII |
-| **Contabilización automática** | Cada DTE aceptado genera su asiento con las cuentas configuradas |
-
-## Arquitectura
-
-```
-web/                       React + Vite (Cloudflare Pages)
-supabase/migrations/       Postgres: esquema, RLS, reglas contables, reportes
-supabase/functions/
-  cuadra/                  Edge Function única con rutas: credenciales, dte-emitir,
-                           dte-estado, dte-recibir, rcv-sync
-  _shared/sii/             Núcleo SII sin dependencias de runtime (Node y Deno)
-tests/                     Pruebas del núcleo SII (Vitest) y de la base de datos (SQL)
-```
-
-- **Base de datos**: Supabase Postgres. Las reglas contables (cuadratura, inmutabilidad, períodos, numeración) viven en la base, no en el navegador, así no se pueden saltar.
-- **SII**: el núcleo construye el XML ya en forma canónica (C14N), firma con RSA-SHA1 como exige el SII, y habla con los servicios SOAP/REST de certificación (`maullin`) o producción (`palena`).
-
-## Puesta en marcha
-
-### 1. Base de datos
-Las migraciones de `supabase/migrations` ya están aplicadas en el proyecto `cuadra-contable`. Para otro proyecto: `supabase db push`.
-
-### 2. Secretos de la Edge Function
-En el dashboard de Supabase → **Edge Functions → Secrets**:
-
-| Secreto | Valor |
-|---|---|
-| `CUADRA_MASTER_KEY` | 32 bytes aleatorios en base64: `openssl rand -base64 32`. **Guárdelo en un gestor de claves**: sin él no se pueden descifrar los certificados ni los CAF cargados. |
-| `CUADRA_ORIGENES` | URL(s) del frontend separadas por coma, ej. `https://cuadra.pages.dev,http://localhost:5173` |
-
-`SUPABASE_URL`, `SUPABASE_ANON_KEY` y `SUPABASE_SERVICE_ROLE_KEY` los inyecta Supabase.
-
-### 3. Autenticación
-En **Authentication → Providers**: habilite correo con confirmación. En **Authentication → Multi-Factor**: habilite TOTP. El sistema exige MFA para operar.
-
-### 4. Frontend
 ```bash
 cd web
-cp .env.example .env    # URL y publishable key del proyecto
+cp .env.example .env.local     # URL y clave publicable del proyecto (son públicas)
 npm install
-npm run dev             # http://localhost:5173
-npm run build           # dist/ para Cloudflare Pages
+npm run dev                    # http://localhost:5173
 ```
-En Cloudflare Pages: directorio raíz `web`, comando `npm run build`, salida `dist`, y las variables `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY`. Los encabezados de seguridad están en `web/public/_headers`.
 
-### 5. Primer uso
-1. Crear cuenta, activar la verificación en dos pasos y registrar la empresa (se crea el plan de cuentas).
-2. **Configuración**: fecha de resolución SII, certificado digital (.pfx) y CAF de cada tipo de documento.
-3. Emitir documentos en ambiente de **certificación** y completar el proceso del SII (ver `docs/certificacion-sii.md`).
-4. Al recibir la resolución, cambiar el ambiente a **producción**.
+**Primer ingreso:** creas tu cuenta, confirmas el correo y activas la verificación en dos pasos (app autenticadora). Después creas una empresa, y esta trae un plan de cuentas chileno base.
+
+## Publicar en Cloudflare Pages
+
+1. En Cloudflare Pages conecta el repositorio. Usa el directorio `web`, el comando de build `npm run build` y la salida `dist`.
+2. Define las variables `VITE_SUPABASE_URL` y `VITE_SUPABASE_KEY`.
+3. `public/_headers` ya trae CSP estricta, HSTS, bloqueo de iframes y otras cabeceras. `public/_redirects` hace que funcionen las rutas de la SPA.
+4. En Supabase, en Auth → URL Configuration, agrega el dominio de Pages como *Site URL* y en *Redirect URLs*.
+
+## Módulos
+
+| Pantalla | Qué hace |
+|---|---|
+| Panel | KPIs (ventas, margen, caja, liquidez, días de cobro y pago, endeudamiento, IVA del mes) y gráficos mensuales |
+| Compras y ventas | Registra facturas, boletas y notas de crédito o débito. Calcula el IVA al 19 %, crea el asiento automáticamente, permite anular (anula o reversa el asiento) y exportar el libro en CSV |
+| Asientos | Asientos manuales con validación de que cuadren, borradores, contabilización con folio correlativo, anulación y reverso |
+| Libros y estados | Libro diario, libro mayor, balance de 8 columnas, balance general y estado de resultados, todos exportables a CSV |
+| Propuesta F29 | Códigos 538, 537, 504, 89, 77, 563, 115, 62 y 91, con el remanente arrastrado del mes anterior |
+| Plan de cuentas | Árbol de cuentas, alta de cuentas y elección de las cuentas automáticas (clientes, proveedores, IVA, etc.) |
+| Empresa y usuarios | Datos de la empresa, roles (admin, contador, operador, auditor, lector), cierre y reapertura de períodos, y auditoría con verificación de integridad |
+
+## Seguridad
+
+- **RLS en todas las tablas.** Cada usuario ve solo las empresas de las que es miembro.
+- **Dos pasos obligatorio (TOTP).** La base de datos rechaza cualquier escritura que no venga de una sesión `aal2`; no basta con la validación del frontend.
+- **Escritura solo por funciones.** Los documentos no se pueden insertar directo: `registrar_documento` valida el rol, el RUT (módulo 11), los montos, el IVA y el período abierto.
+- **Asientos inmutables.** Un asiento contabilizado no se edita: solo se anula o se reversa. Los períodos cerrados no aceptan movimientos.
+- **Auditoría encadenada con SHA-256.** Cada cambio guarda quién lo hizo, la IP y el antes y después, y la cadena se puede verificar desde la app.
+- **Sesión en `sessionStorage`.** Se cierra al cerrar la pestaña y también tras 20 minutos sin actividad. La contraseña debe tener al menos 12 caracteres.
+- **Cabeceras HTTP.** CSP sin scripts externos, HSTS, `X-Frame-Options: DENY`, nosniff y Permissions-Policy.
+- **Exportación CSV protegida.** Neutraliza la inyección de fórmulas al abrir el archivo en Excel.
+
+**Pendiente en el panel de Supabase (no se puede hacer por SQL):**
+- Activar *Leaked password protection* en Auth → Providers → Email → Password security.
+- Mantener activa la confirmación de correo.
+- Configurar un SMTP propio para producción.
 
 ## Pruebas
 
 ```bash
-npm install
-npx vitest run           # núcleo SII: RUT, totales, TED, firma XMLDSig, sobres, intercambio, F29, RCV
-./tests/sql/run.sh       # 44 verificaciones de reglas contables y seguridad sobre Postgres local
-cd supabase/functions && deno check --config deno.json cuadra/index.ts
+npm ci && npx vitest run      # firma/DTE (versión anterior)
+./tests/sql/run.sh            # reglas contables y seguridad, incluye compras/ventas y F29
 ```
 
-Las firmas se validan con un verificador XMLDSig independiente (`xml-crypto`), incluida la firma del sobre en su contexto de namespaces.
+## Migraciones de esta versión
 
-## Límites conocidos
+`supabase/migrations/`:
+- `documentos_manual`: tabla `documentos` y las funciones `registrar_documento`, `anular_documento`, `propuesta_f29`, `guardar_f29` y `metricas_documentos`.
+- `asientos_origen_documentos`: permite los orígenes `documento_venta` y `documento_compra`.
+- `miembros_perfiles_fk`: relación entre miembros y perfiles para mostrar nombres.
 
-- **Certificación SII**: el código implementa los formatos y servicios, pero la habilitación como emisor la otorga el SII tras el set de pruebas, simulación e intercambio con la empresa real y su certificado. Algunos detalles (glosas, endpoints de reclamo y boleta) se confirman en esa etapa.
-- **F29**: es una propuesta para contrastar con la del SII; no se presenta automáticamente (el SII no ofrece API pública para declarar).
-- **RCV en línea**: usa el servicio de la consulta web del SII, que no es una API documentada; si cambia, queda la importación del CSV.
-- **Fuera del alcance de esta versión**: remuneraciones, inventario, conciliación bancaria, activo fijo y depreciación automática, envío de DTE por correo al receptor.
+La propuesta de F29 es **referencial**: no incluye el reajuste UTM del remanente, retenciones de honorarios ni otros impuestos. Revísala en sii.cl antes de declarar.
