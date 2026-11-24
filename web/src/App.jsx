@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { BrowserRouter, NavLink, Navigate, Route, Routes } from 'react-router-dom';
-import { sb, q } from './supabase';
+import { sb, q, rpc } from './supabase';
 import { Login, DosPasos, NuevaClave } from './auth';
 import { rutFormato, rutValido, ROLES } from './util';
 import Panel from './paginas/Panel';
@@ -64,9 +64,10 @@ function Espacio({ usuario }) {
   const [lista, setLista] = useState(null);
   const [actual, setActual] = useState(() => sessionStorage.getItem('empresa'));
   const [menu, setMenu] = useState(false);
+  const [errorRol, setErrorRol] = useState(null);
 
   const cargar = useCallback(async () => {
-    const filas = await q(sb.from('miembros').select('rol, empresas(id, rut, razon_social, tasa_ppm)').eq('user_id', usuario.id));
+    const filas = await q(sb.from('miembros').select('rol, rol_prueba, empresas(id, rut, razon_social, tasa_ppm)').eq('user_id', usuario.id));
     setLista(filas.filter((f) => f.empresas).sort((a, b) => a.empresas.razon_social.localeCompare(b.empresas.razon_social)));
   }, [usuario.id]);
   useEffect(() => { cargar(); }, [cargar]);
@@ -77,11 +78,18 @@ function Espacio({ usuario }) {
   const sel = lista.find((f) => f.empresas.id === actual) ?? lista[0];
   if (!sel) return <NuevaEmpresa usuario={usuario} alCrear={async (id) => { await cargar(); setActual(id); }} primera />;
 
+  const rol = sel.rol_prueba ?? sel.rol;
+  async function probar(nuevo) {
+    setErrorRol(null);
+    try { await rpc('probar_rol', { p_empresa: sel.empresas.id, p_rol: nuevo }); await cargar(); }
+    catch (e) { setErrorRol(e.message); }
+  }
   const ctx = {
     empresa: sel.empresas,
-    rol: sel.rol,
+    rol,
+    rolReal: sel.rol,
     usuario,
-    puede: (...roles) => roles.includes(sel.rol),
+    puede: (...roles) => roles.includes(rol),
     recargarEmpresas: cargar,
     cambiar: setActual,
   };
@@ -107,21 +115,35 @@ function Espacio({ usuario }) {
               <option value="+">+ Nueva empresa…</option>
             </select>
           </label>
+          {sel.rol === 'admin' && (
+            <label className="selector">Ver la app como
+              <select value={rol} onChange={(e) => probar(e.target.value)}>
+                {Object.entries(ROLES).map(([k, v]) => <option key={k} value={k}>{v}{k === 'admin' ? ' (tu rol real)' : ''}</option>)}
+              </select>
+            </label>
+          )}
           <nav onClick={() => setMenu(false)}>
             {nav.map(([a, t]) => <NavLink key={a} to={a} end={a === '/'}>{t}</NavLink>)}
           </nav>
           <div className="pie-lateral">
             <div>{usuario.email}</div>
-            <div className="chico">{ROLES[sel.rol]} · {rutFormato(sel.empresas.rut)}</div>
+            <div className="chico">{ROLES[rol]}{sel.rol_prueba ? ' (prueba)' : ''} · {rutFormato(sel.empresas.rut)}</div>
             <button className="enlace" onClick={() => { sessionStorage.clear(); sb.auth.signOut(); }}>Cerrar sesión</button>
           </div>
         </aside>
         <main>
           <button className="boton-menu" onClick={() => setMenu(!menu)} aria-label="Menú">☰ Menú</button>
+          {errorRol && <p className="aviso error">{errorRol}</p>}
+          {sel.rol_prueba && (
+            <div className="franja-prueba" role="status">
+              <span>Estás viendo la app como <b>{ROLES[sel.rol_prueba]}</b>. La base de datos aplica los permisos reales de ese rol.</span>
+              <button onClick={() => probar('admin')}>Volver a Administrador</button>
+            </div>
+          )}
           {actual === '+' ? (
             <NuevaEmpresa usuario={usuario} alCrear={async (id) => { await cargar(); setActual(id); }} alCancelar={() => setActual(sel.empresas.id)} />
           ) : (
-            <Routes key={sel.empresas.id}>
+            <Routes key={sel.empresas.id + rol}>
               <Route path="/" element={<Panel />} />
               <Route path="/documentos" element={<Documentos />} />
               <Route path="/asientos" element={<Asientos />} />

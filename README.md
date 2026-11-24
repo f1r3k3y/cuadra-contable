@@ -34,6 +34,7 @@ npm run dev                    # http://localhost:5173
 | Libros y estados | Libro diario, libro mayor, balance de 8 columnas, balance general y estado de resultados, todos exportables a CSV |
 | Propuesta F29 | Códigos 538, 537, 504, 89, 77, 563, 115, 62 y 91, con el remanente arrastrado del mes anterior |
 | Plan de cuentas | Árbol de cuentas, alta de cuentas y elección de las cuentas automáticas (clientes, proveedores, IVA, etc.) |
+| Ver la app como (solo admin) | Selector en el menú lateral para actuar como contador, operador, auditor o lector. La base de datos aplica de verdad los permisos de ese rol; "Volver a Administrador" siempre funciona y cada cambio queda auditado |
 | Empresa y usuarios | Datos de la empresa, roles (admin, contador, operador, auditor, lector), cierre y reapertura de períodos, y auditoría con verificación de integridad |
 
 ## Seguridad
@@ -65,5 +66,6 @@ npm ci && npx vitest run      # firma/DTE (versión anterior)
 - `documentos_manual`: tabla `documentos` y las funciones `registrar_documento`, `anular_documento`, `propuesta_f29`, `guardar_f29` y `metricas_documentos`.
 - `asientos_origen_documentos`: permite los orígenes `documento_venta` y `documento_compra`.
 - `miembros_perfiles_fk`: relación entre miembros y perfiles para mostrar nombres.
+- `probar_rol`: columna `miembros.rol_prueba`, función `probar_rol()` y `app.tiene_rol` usando el rol efectivo.
 
 La propuesta de F29 es **referencial**: no incluye el reajuste UTM del remanente, retenciones de honorarios ni otros impuestos. Revísala en sii.cl antes de declarar.

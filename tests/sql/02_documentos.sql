@@ -50,6 +50,28 @@ select t.como('00000000-0000-0000-0000-00000000000a');
 select t.afirmar((select count(*) from public.documentos where empresa_id = (select v from t.ids where k = 'e2')) = 0, 'otra empresa no ve los documentos');
 select t.debe_fallar($$select public.registrar_documento((select v from t.ids where k = 'e2'), 'venta', 33, 301, '2026-10-05', '96.790.240-3', 'X', 1000)$$, 'Sin permiso');
 select t.debe_fallar($$select public.propuesta_f29((select v from t.ids where k = 'e2'), '202610')$$, 'Sin acceso');
+
+-- Modo probar rol (carla es admin real de e2)
+select t.como('00000000-0000-0000-0000-00000000000c');
+select public.probar_rol((select v from t.ids where k = 'e2'), 'lector');
+select t.debe_fallar($$select public.registrar_documento((select v from t.ids where k = 'e2'), 'venta', 33, 400, '2026-10-05', '96.790.240-3', 'X', 1000)$$, 'Sin permiso');
+update public.empresas set giro = 'Otro' where id = (select v from t.ids where k = 'e2');
+select t.afirmar((select giro from public.empresas where id = (select v from t.ids where k = 'e2')) = 'Comercio', 'como lector no puede editar la empresa');
+select t.afirmar((select count(*) from public.documentos where empresa_id = (select v from t.ids where k = 'e2')) > 0, 'como lector sigue viendo los documentos');
+select public.probar_rol((select v from t.ids where k = 'e2'), 'contador');
+select public.registrar_documento((select v from t.ids where k = 'e2'), 'venta', 33, 401, '2026-10-05', '96.790.240-3', 'X', 1000);
+select t.afirmar(true, 'como contador puede registrar documentos');
+select t.debe_fallar($$select public.agregar_miembro((select v from t.ids where k = 'e2'), 'ana@ejemplo.cl', 'lector')$$, 'administrador');
+select public.probar_rol((select v from t.ids where k = 'e2'), 'admin');
+select t.afirmar((select rol_prueba from public.miembros where user_id = auth.uid() and empresa_id = (select v from t.ids where k = 'e2')) is null, 'vuelve a administrador');
+select public.agregar_miembro((select v from t.ids where k = 'e2'), 'beto@ejemplo.cl', 'operador');
+select t.como('00000000-0000-0000-0000-00000000000b');
+select t.debe_fallar($$select public.probar_rol((select v from t.ids where k = 'e2'), 'admin')$$, 'Solo un administrador');
+select t.como('00000000-0000-0000-0000-00000000000c');
+update public.miembros set rol_prueba = 'admin' where user_id = '00000000-0000-0000-0000-00000000000b';
+select t.afirmar((select rol_prueba from public.miembros where user_id = '00000000-0000-0000-0000-00000000000b' and empresa_id = (select v from t.ids where k = 'e2')) is null, 'un no-admin nunca recibe rol de prueba');
+insert into public.miembros (empresa_id, user_id, rol) select (select v from t.ids where k = 'e2'), '00000000-0000-0000-0000-00000000000a', 'admin';
+select t.debe_fallar($$update public.miembros set rol_prueba = 'lector' where user_id = '00000000-0000-0000-0000-00000000000a' and empresa_id = (select v from t.ids where k = 'e2')$$, 'propio rol de prueba');
 reset role;
 \o
 \echo 'PRUEBAS DE COMPRAS Y VENTAS PASARON'
