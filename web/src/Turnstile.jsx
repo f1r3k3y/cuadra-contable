@@ -37,7 +37,7 @@ export default function Turnstile({ accion, alToken, reinicio = 0 }) {
         sitekey: TURNSTILE_SITEKEY,
         action: accion,
         language: 'es',
-        theme: 'light',
+        theme: 'dark',
         callback: (t) => cb.current(t),
         'expired-callback': () => cb.current(null),
         'error-callback': () => { cb.current(null); },
