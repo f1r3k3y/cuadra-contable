@@ -1,7 +1,8 @@
 import { Fragment, useCallback, useEffect, useState } from 'react';
 import { useEmpresa } from '../App';
 import { q, rpc, sb } from '../supabase';
-import { hoy, inicioMes, peso } from '../util';
+import { fecha, hoy, inicioMes, peso } from '../util';
+import { Aviso, CampoMonto, Dialogo, filaAccionable } from '../componentes';
 
 const lineaVacia = () => ({ cuenta: '', debe: '', haber: '', glosa: '' });
 
@@ -98,7 +99,7 @@ export default function Asientos() {
         </div>
       </header>
 
-      {msg && <p className={msg.ok ? 'aviso ok' : 'aviso error'}>{msg.t}</p>}
+      <Aviso msg={msg} />
 
       {nuevo && (
         <div className="formulario">
@@ -146,8 +147,8 @@ export default function Asientos() {
             {lista.length === 0 && <tr><td colSpan={7} className="vacio">No hay asientos en el rango.</td></tr>}
             {lista.map((a) => (
               <Fragment key={a.id}>
-                <tr className={a.estado === 'anulado' ? 'anulado clic' : 'clic'} onClick={() => ver(a.id)}>
-                  <td className="n">{a.numero ?? '—'}</td><td className="nw">{a.fecha}</td><td>{a.tipo}</td><td>{a.glosa}</td>
+                <tr className={a.estado === 'anulado' ? 'anulado clic' : 'clic'} aria-expanded={abierto === a.id} {...filaAccionable(() => ver(a.id), 'Ver líneas del asiento')}>
+                  <td className="n">{a.numero ?? '—'}</td><td className="nw">{fecha(a.fecha)}</td><td>{a.tipo}</td><td>{a.glosa}</td>
                   <td className="n">{peso(a.total_debe)}</td><td><span className={'etiqueta ' + a.estado}>{a.estado}</span></td>
                   <td className="nw" onClick={(e) => e.stopPropagation()}>
                     {a.estado === 'borrador' && contabiliza && <button className="enlace" onClick={() => setAccion({ tipo: 'contabilizar', id: a.id })}>Aprobar</button>}
@@ -178,8 +179,8 @@ export default function Asientos() {
       </div>
 
       {accion && (
-        <div className="velo" role="dialog" aria-modal="true">
-          <form className="dialogo" onSubmit={ejecutar}>
+        <Dialogo titulo="Confirmar acción" alCerrar={() => setAccion(null)}>
+          <form onSubmit={ejecutar}>
             <h2>{{ contabilizar: 'Aprobar y contabilizar', eliminar: 'Eliminar borrador', anular: `Anular asiento N° ${accion.n}`, reversar: `Reversar asiento N° ${accion.n}` }[accion.tipo]}</h2>
             {accion.tipo === 'contabilizar' && <p>Se le asignará número correlativo y ya no podrá editarse.</p>}
             {accion.tipo === 'eliminar' && <p>El borrador se elimina; la acción queda en la auditoría.</p>}
@@ -189,7 +190,7 @@ export default function Asientos() {
             <div className="acciones"><button type="button" onClick={() => setAccion(null)}>Cancelar</button>
               <button className={['eliminar', 'anular'].includes(accion.tipo) ? 'peligro' : 'primario'}>Confirmar</button></div>
           </form>
-        </div>
+        </Dialogo>
       )}
     </section>
   );

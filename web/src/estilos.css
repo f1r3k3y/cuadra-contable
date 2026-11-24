@@ -108,6 +108,17 @@ main { padding: clamp(16px, 3vw, 36px); }
 .detalle-campos code { background: none; padding: 0; font-size: 12.5px; }
 .tabla tr.cambiado td { background: light-dark(#fff3d6, #3a2f12); }
 
+.hoja > .aviso { position: sticky; top: 8px; z-index: 5; box-shadow: 0 6px 18px #0002; }
+.campo-monto { display: flex; align-items: center; border: 1px solid var(--linea); border-radius: var(--r); background: var(--panel); }
+.campo-monto:focus-within { outline: 2px solid var(--ladrillo); outline-offset: 2px; }
+.campo-monto > span { padding-inline-start: 10px; color: var(--suave); }
+.campo-monto input { border: 0; outline: 0; text-align: right; font-variant-numeric: tabular-nums; min-width: 0; }
+.tabla.editable .campo-monto input { width: 120px; }
+.selector-mes { display: flex; align-items: center; gap: 6px; border: 0; padding: 0; margin: 0; }
+.selector-mes legend { float: left; margin-inline-end: 4px; font-size: 13px; color: var(--suave); padding: 0; }
+.selector-mes select { width: auto; }
+tr.clic:focus-visible { outline: 2px solid var(--ladrillo); outline-offset: -2px; }
+
 /* Formularios */
 .formulario { background: var(--panel); border: 1px solid var(--linea); border-radius: 8px; padding: 18px; margin-bottom: 18px; display: grid; gap: 12px; }
 .formulario.rejilla, .formulario .rejilla { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; }
@@ -167,8 +178,9 @@ figcaption { font-weight: 500; padding: 0 6px 8px; }
 .lista-simple { padding-inline-start: 18px; margin: 0; display: grid; gap: 6px; }
 
 /* Diálogos */
-.velo { position: fixed; inset: 0; background: #0008; display: grid; place-items: center; padding: 16px; z-index: 10; }
-.dialogo { background: var(--panel); border-radius: 10px; padding: 22px; width: min(460px, 100%); display: grid; gap: 12px; }
+.dialogo { background: var(--panel); color: var(--tinta); border: 0; border-radius: 10px; padding: 22px; width: min(460px, calc(100% - 32px)); box-shadow: 0 20px 50px #0005; }
+.dialogo::backdrop { background: #0008; }
+.dialogo > form, .dialogo > div { display: grid; gap: 12px; }
 .dialogo h2 { margin: 0; }
 
 @media (max-width: 1100px) { .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

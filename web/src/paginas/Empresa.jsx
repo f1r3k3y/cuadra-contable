@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Aviso, CampoMonto } from '../componentes';
 import { useEmpresa } from '../App';
 import { q, rpc, sb } from '../supabase';
 import { MESES, PERMISOS, ROLES, ROL_DESC, rutFormato } from '../util';
@@ -49,7 +50,7 @@ export default function Empresa() {
   return (
     <section className="hoja">
       <header className="cabecera"><div><h1>{datos.razon_social}</h1><p className="chico">RUT {rutFormato(datos.rut)}</p></div></header>
-      {msg && <p className={msg.ok ? 'aviso ok' : 'aviso error'}>{msg.t}</p>}
+      <Aviso msg={msg} />
 
       <div className="tu-rol">
         <b>Tu rol: {ROLES[rol]}</b>
@@ -67,7 +68,7 @@ export default function Empresa() {
             <label>Comuna<input value={datos.comuna} onChange={set('comuna')} /></label>
             <label>Correo<input type="email" value={datos.correo ?? ''} onChange={set('correo')} /></label>
             <label>Tasa PPM (%)<input type="number" step="0.001" min="0" max="10" value={datos.tasa_ppm} onChange={set('tasa_ppm')} /></label>
-            <label>Remanente de crédito fiscal inicial ($)<input type="number" min="0" step="1" value={datos.remanente_inicial} onChange={set('remanente_inicial')} /></label>
+            <label>Remanente de crédito fiscal inicial ($)<CampoMonto valor={String(datos.remanente_inicial ?? '')} alCambiar={(v) => setDatos({ ...datos, remanente_inicial: v })} /></label>
             {admin && <div className="acciones"><button className="primario">Guardar datos</button></div>}
           </fieldset>
         </form>}

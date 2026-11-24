@@ -3,6 +3,7 @@ import { useEmpresa } from '../App';
 import { q, rpc, sb } from '../supabase';
 import { TIPOS_DOC, hoy, num, peso } from '../util';
 import { AYUDA_F29 } from '../ayudas';
+import { Aviso, SelectorMes } from '../componentes';
 
 const LINEAS = [
   ['538', 'Total débitos fiscales', true],
@@ -43,11 +44,11 @@ export default function F29() {
           <p className="chico">Formulario 29 · período {mes} · calculado desde el libro de compras y ventas</p>
         </div>
         <div className="filtros">
-          <label className="en-linea">Período<input type="month" value={mes} onChange={(e) => setMes(e.target.value)} /></label>
+          <SelectorMes valor={mes} alCambiar={setMes} etiqueta="Período" />
           {permite('f29.guardar') && <button className="primario" onClick={guardar}>Guardar propuesta</button>}
         </div>
       </header>
-      {msg && <p className={msg.ok ? 'aviso ok' : 'aviso error'}>{msg.t}</p>}
+      <Aviso msg={msg} />
       {p && (
         <>
           <div className="dos-columnas">

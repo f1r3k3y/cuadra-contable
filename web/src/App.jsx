@@ -1,17 +1,18 @@
-import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { Suspense, createContext, lazy, useCallback, useContext, useEffect, useState } from 'react';
 import { BrowserRouter, NavLink, Navigate, Route, Routes } from 'react-router-dom';
 import { sb, q, rpc } from './supabase';
 import { Login, DosPasos, NuevaClave } from './auth';
 import { rutFormato, rutValido, ROLES } from './util';
-import Panel from './paginas/Panel';
-import Asientos from './paginas/Asientos';
-import Documentos from './paginas/Documentos';
-import Cuentas from './paginas/Cuentas';
-import Reportes from './paginas/Reportes';
-import F29 from './paginas/F29';
-import Empresa from './paginas/Empresa';
-import Tesoreria from './paginas/Tesoreria';
-import Auditoria from './paginas/Auditoria';
+// Cada pantalla se descarga solo cuando se abre (los gráficos viajan con el Panel)
+const Panel = lazy(() => import('./paginas/Panel'));
+const Asientos = lazy(() => import('./paginas/Asientos'));
+const Documentos = lazy(() => import('./paginas/Documentos'));
+const Cuentas = lazy(() => import('./paginas/Cuentas'));
+const Reportes = lazy(() => import('./paginas/Reportes'));
+const F29 = lazy(() => import('./paginas/F29'));
+const Empresa = lazy(() => import('./paginas/Empresa'));
+const Tesoreria = lazy(() => import('./paginas/Tesoreria'));
+const Auditoria = lazy(() => import('./paginas/Auditoria'));
 
 const Ctx = createContext(null);
 export const useEmpresa = () => useContext(Ctx);
@@ -171,10 +172,12 @@ function Espacio({ usuario }) {
           {actual === '+' ? (
             <NuevaEmpresa usuario={usuario} alCrear={async (id) => { await cargar(); setActual(id); }} alCancelar={() => setActual(sel.empresas.id)} />
           ) : (
-            <Routes key={sel.empresas.id + rol}>
-              {visibles.map(([a, , , el]) => <Route key={a} path={a} element={el} />)}
-              <Route path="*" element={<Navigate to="/" />} />
-            </Routes>
+            <Suspense fallback={<section className="hoja"><p className="cargando-pagina">Cargando…</p></section>}>
+              <Routes key={sel.empresas.id + rol}>
+                {visibles.map(([a, , , el]) => <Route key={a} path={a} element={el} />)}
+                <Route path="*" element={<Navigate to="/" />} />
+              </Routes>
+            </Suspense>
           )}
         </main>
       </div>

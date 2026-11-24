@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useEmpresa } from '../App';
 import { q, rpc, sb } from '../supabase';
-import { TIPOS_DOC, csv, hoy, peso, rutFormato, rutValido } from '../util';
+import { TIPOS_DOC, csv, fecha, hoy, peso, rutFormato, rutValido } from '../util';
+import { Aviso, CampoMonto, Dialogo, SelectorMes } from '../componentes';
 
 const vacio = { tipo: '33', folio: '', fecha: hoy(), rut: '', razon: '', neto: '', exento: '', ivaNR: '', cuenta: '', glosa: '' };
 
@@ -70,7 +71,7 @@ export default function Documentos() {
   }, { neto: 0, exento: 0, iva: 0, total: 0 }), [docs]);
 
   const exportar = () => csv(`libro_${op}s_${mes}`, docs.map((d) => ({
-    Fecha: d.fecha, Tipo: d.tipo, Folio: d.folio, RUT: rutFormato(d.rut), 'Razón social': d.razon_social,
+    Fecha: fecha(d.fecha), Tipo: d.tipo, Folio: d.folio, RUT: rutFormato(d.rut), 'Razón social': d.razon_social,
     Neto: d.neto, Exento: d.exento, IVA: d.iva, 'IVA no recup.': d.iva_no_recuperable, Total: d.total, Estado: d.estado,
   })));
 
@@ -86,12 +87,12 @@ export default function Documentos() {
             <button className={op === 'venta' ? 'activa' : ''} onClick={() => setOp('venta')}>Ventas</button>
             <button className={op === 'compra' ? 'activa' : ''} onClick={() => setOp('compra')}>Compras</button>
           </div>
-          <label className="en-linea">Mes<input type="month" value={mes} onChange={(e) => setMes(e.target.value)} /></label>
+          <SelectorMes valor={mes} alCambiar={setMes} />
           {escribe && <button className="primario" onClick={() => setAbierto(!abierto)}>{abierto ? 'Cerrar formulario' : '+ Registrar ' + op}</button>}
         </div>
       </header>
 
-      {msg && <p className={msg.ok ? 'aviso ok' : 'aviso error'}>{msg.t}</p>}
+      <Aviso msg={msg} />
 
       {abierto && escribe && (
         <form className="formulario rejilla" onSubmit={guardar}>
@@ -105,9 +106,9 @@ export default function Documentos() {
               aria-invalid={f.rut !== '' && !rutValido(f.rut)} />
           </label>
           <label className="ancho">Razón social<input value={f.razon} onChange={set('razon')} required maxLength={200} /></label>
-          {!exentoTipo && <label>Neto afecto<input type="number" min="0" step="1" value={f.neto} onChange={set('neto')} /></label>}
-          <label>Exento<input type="number" min="0" step="1" value={f.exento} onChange={set('exento')} /></label>
-          {op === 'compra' && !exentoTipo && <label>IVA no recuperable<input type="number" min="0" max={iva} step="1" value={f.ivaNR} onChange={set('ivaNR')} /></label>}
+          {!exentoTipo && <label>Neto afecto<CampoMonto valor={f.neto} alCambiar={(v) => setF({ ...f, neto: v })} /></label>}
+          <label>Exento<CampoMonto valor={f.exento} alCambiar={(v) => setF({ ...f, exento: v })} /></label>
+          {op === 'compra' && !exentoTipo && <label>IVA no recuperable<CampoMonto valor={f.ivaNR} max={iva} alCambiar={(v) => setF({ ...f, ivaNR: v })} /></label>}
           <label className="ancho">Cuenta de {op === 'venta' ? 'ingreso' : 'gasto o activo'} (opcional)
             <select value={f.cuenta} onChange={set('cuenta')}>
               <option value="">Por defecto de la empresa</option>
@@ -129,7 +130,7 @@ export default function Documentos() {
             {docs.length === 0 && <tr><td colSpan={12} className="vacio">No hay documentos en este mes.</td></tr>}
             {docs.map((d) => (
               <tr key={d.id} className={d.estado === 'anulado' ? 'anulado' : ''}>
-                <td className="nw">{d.fecha}</td><td title={TIPOS_DOC[d.tipo]}>{d.tipo}</td><td className="n">{d.folio}</td>
+                <td className="nw">{fecha(d.fecha)}</td><td title={TIPOS_DOC[d.tipo]}>{d.tipo}</td><td className="n">{d.folio}</td>
                 <td className="nw">{rutFormato(d.rut)}</td><td>{d.razon_social}</td>
                 <td className="n">{peso(d.neto)}</td><td className="n">{peso(d.exento)}</td><td className="n">{peso(d.iva)}</td><td className="n">{peso(d.total)}</td>
                 <td className="n">{d.estado === 'vigente' && d.tipo !== 61 ? peso(d.saldo) : ''}</td>
@@ -150,15 +151,15 @@ export default function Documentos() {
       {docs.length > 0 && <button onClick={exportar}>Descargar CSV</button>}
 
       {anular && (
-        <div className="velo" role="dialog" aria-modal="true">
-          <form className="dialogo" onSubmit={confirmarAnulacion}>
+        <Dialogo titulo={`Anular folio ${anular.folio}`} alCerrar={() => setAnular(null)}>
+          <form onSubmit={confirmarAnulacion}>
             <h2>Anular folio {anular.folio}</h2>
             <p>Se anulará el asiento (o se reversará si el período está cerrado). Queda registrado en la auditoría.</p>
             <label>Motivo<input value={anular.motivo} onChange={(e) => setAnular({ ...anular, motivo: e.target.value })} minLength={5} required autoFocus /></label>
             {anular.error && <p className="aviso error">{anular.error}</p>}
             <div className="acciones"><button type="button" onClick={() => setAnular(null)}>Cancelar</button><button className="peligro">Anular documento</button></div>
           </form>
-        </div>
+        </Dialogo>
       )}
     </section>
   );

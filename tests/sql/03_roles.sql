@@ -137,6 +137,18 @@ select t.afirmar((select rol_prueba from public.miembros where user_id = auth.ui
 reset role;
 select t.afirmar((select count(*) from public.accesos where usuario_id = '00000000-0000-0000-0000-00000000000c' and evento = 'salida') = 1, 'una sola salida por ingreso');
 set role authenticated;
+
+-- Fase 2: IP real en la auditoría (no se acepta una X-Forwarded-For inventada)
+select t.como('00000000-0000-0000-0000-00000000000a');
+select set_config('request.headers', '{"x-forwarded-for":"1.2.3.4, 9.9.9.9","cf-connecting-ip":"9.9.9.9","user-agent":"Navegador de prueba","cf-ipcountry":"CL"}', false);
+select public.registrar_acceso((select v from t.ids where k = 'e3'), 'ingreso');
+select set_config('request.headers', '{"x-forwarded-for":"1.2.3.4, 8.8.8.8"}', false);
+select public.registrar_acceso((select v from t.ids where k = 'e3'), 'salida');
+select set_config('request.headers', '', false);
+reset role;
+select t.afirmar((select ip || '|' || agente || '|' || pais from public.auditoria where tabla = 'accesos' and usuario_id = '00000000-0000-0000-0000-00000000000a' order by id desc offset 1 limit 1) = '9.9.9.9|Navegador de prueba|CL', 'auditoría guarda IP de Cloudflare, navegador y país');
+select t.afirmar((select ip from public.auditoria where tabla = 'accesos' and usuario_id = '00000000-0000-0000-0000-00000000000a' order by id desc limit 1) = '8.8.8.8', 'sin Cloudflare usa el último salto, no el valor inventado');
+set role authenticated;
 reset role;
 \o
 \echo 'PRUEBAS DE ROLES Y TESORERÍA PASARON'

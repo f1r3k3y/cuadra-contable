@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useState } from 'react';
 import { useEmpresa } from '../App';
 import { q, rpc, sb } from '../supabase';
-import { csv, hoy, inicioAnio, peso } from '../util';
+import { csv, fecha, hoy, inicioAnio, peso } from '../util';
 
 const VISTAS = [['diario', 'Libro diario'], ['mayor', 'Libro mayor'], ['b8', 'Balance 8 columnas'], ['bg', 'Balance general'], ['er', 'Estado de resultados']];
 
@@ -71,7 +71,7 @@ function Diario({ filas }) {
         const nuevo = f.asiento_id !== previo; previo = f.asiento_id;
         return (
           <tr key={i} className={nuevo ? 'separa' : ''}>
-            <td className="n">{nuevo ? f.numero : ''}</td><td className="nw">{nuevo ? f.fecha : ''}</td>
+            <td className="n">{nuevo ? f.numero : ''}</td><td className="nw">{nuevo ? fecha(f.fecha) : ''}</td>
             <td>{f.cuenta_codigo} {f.cuenta_nombre}</td><td>{nuevo ? f.glosa_asiento : f.glosa}{f.auxiliar_nombre && <small> · {f.auxiliar_nombre}</small>}</td>
             <td className="n">{Number(f.debe) ? peso(f.debe) : ''}</td><td className="n">{Number(f.haber) ? peso(f.haber) : ''}</td>
           </tr>
@@ -87,7 +87,7 @@ function Mayor({ filas }) {
     <table className="tabla">
       <thead><tr><th>Fecha</th><th className="n">N°</th><th>Glosa</th><th className="n">Debe</th><th className="n">Haber</th><th className="n">Saldo</th></tr></thead>
       <tbody>{filas.map((f, i) => (
-        <tr key={i} className={i === 0 ? 'titulo-cuenta' : ''}><td className="nw">{f.fecha}</td><td className="n">{f.numero ?? ''}</td><td>{f.glosa}{f.auxiliar && <small> · {f.auxiliar}</small>}</td>
+        <tr key={i} className={i === 0 ? 'titulo-cuenta' : ''}><td className="nw">{fecha(f.fecha)}</td><td className="n">{f.numero ?? ''}</td><td>{f.glosa}{f.auxiliar && <small> · {f.auxiliar}</small>}</td>
           <td className="n">{f.debe != null && Number(f.debe) ? peso(f.debe) : ''}</td><td className="n">{f.haber != null && Number(f.haber) ? peso(f.haber) : ''}</td><td className="n">{peso(f.saldo)}</td></tr>
       ))}</tbody>
     </table>

@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useEmpresa } from '../App';
 import { q, rpc, sb } from '../supabase';
-import { TIPOS_DOC, csv, hoy, peso, rutFormato } from '../util';
+import { TIPOS_DOC, csv, fecha, hoy, peso, rutFormato } from '../util';
+import { Aviso, CampoMonto, Dialogo } from '../componentes';
 
 const MEDIOS = { transferencia: 'Transferencia', cheque: 'Cheque', efectivo: 'Efectivo', tarjeta: 'Tarjeta', deposito: 'Depósito', otro: 'Otro' };
 const dias = (f) => Math.floor((new Date(hoy()) - new Date(f)) / 86400000);
@@ -62,7 +63,7 @@ export default function Tesoreria() {
           <button className={vista === 'movimientos' ? 'activa' : ''} onClick={() => setVista('movimientos')}>Movimientos</button>
         </div>
       </header>
-      {msg && <p className={msg.ok ? 'aviso ok' : 'aviso error'}>{msg.t}</p>}
+      <Aviso msg={msg} />
 
       <div className="dos-columnas">
         <div>
@@ -94,7 +95,7 @@ export default function Tesoreria() {
                 {docs.length === 0 && <tr><td colSpan={7} className="vacio">No hay saldos pendientes.</td></tr>}
                 {docs.map((d) => (
                   <tr key={d.id}>
-                    <td className="nw">{d.fecha}</td><td className={'n' + (dias(d.fecha) > 60 ? ' error-texto' : '')}>{dias(d.fecha)}</td>
+                    <td className="nw">{fecha(d.fecha)}</td><td className={'n' + (dias(d.fecha) > 60 ? ' error-texto' : '')}>{dias(d.fecha)}</td>
                     <td title={TIPOS_DOC[d.tipo]}>{d.tipo} N° {d.folio}{d.asiento_estado !== 'contabilizado' && <small> · por aprobar</small>}</td>
                     <td>{d.razon_social}<small> · {rutFormato(d.rut)}</small></td>
                     <td className="n">{peso(d.total)}</td><td className="n">{peso(d.saldo)}</td>
@@ -118,7 +119,7 @@ export default function Tesoreria() {
                 {movs.length === 0 && <tr><td colSpan={7} className="vacio">Aún no hay movimientos.</td></tr>}
                 {movs.map((m) => (
                   <tr key={m.id} className={m.estado === 'anulado' ? 'anulado' : ''}>
-                    <td className="nw">{m.fecha}</td><td>{m.tipo === 'cobro' ? 'Cobro' : 'Pago'}</td>
+                    <td className="nw">{fecha(m.fecha)}</td><td>{m.tipo === 'cobro' ? 'Cobro' : 'Pago'}</td>
                     <td>{m.documentos.tipo} N° {m.documentos.folio} · {m.documentos.razon_social}</td>
                     <td>{m.cuentas.nombre}</td><td>{MEDIOS[m.medio]}{m.referencia && <small> · {m.referencia}</small>}</td>
                     <td className="n">{peso(m.monto)}</td>
@@ -129,13 +130,13 @@ export default function Tesoreria() {
               </tbody>
             </table>
           </div>
-          {movs.length > 0 && <button onClick={() => csv('movimientos_tesoreria', movs.map((m) => ({ Fecha: m.fecha, Tipo: m.tipo, Documento: `${m.documentos.tipo}-${m.documentos.folio}`, Contraparte: m.documentos.razon_social, Cuenta: m.cuentas.nombre, Medio: m.medio, Referencia: m.referencia, Monto: m.monto, Estado: m.estado })))}>Descargar CSV</button>}
+          {movs.length > 0 && <button onClick={() => csv('movimientos_tesoreria', movs.map((m) => ({ Fecha: fecha(m.fecha), Tipo: m.tipo, Documento: `${m.documentos.tipo}-${m.documentos.folio}`, Contraparte: m.documentos.razon_social, Cuenta: m.cuentas.nombre, Medio: m.medio, Referencia: m.referencia, Monto: m.monto, Estado: m.estado })))}>Descargar CSV</button>}
         </>
       )}
 
       {dialogo && (
-        <div className="velo" role="dialog" aria-modal="true">
-          <form className="dialogo" onSubmit={registrar}>
+        <Dialogo titulo={vista === 'cobrar' ? 'Registrar cobro' : 'Registrar pago'} alCerrar={() => setDialogo(null)}>
+          <form onSubmit={registrar}>
             <h2>{vista === 'cobrar' ? 'Registrar cobro' : 'Registrar pago'}</h2>
             <p className="chico">{dialogo.doc.tipo} N° {dialogo.doc.folio} · {dialogo.doc.razon_social} · saldo {peso(dialogo.doc.saldo)}</p>
             <label>Fecha<input type="date" min={dialogo.doc.fecha} max={hoy()} value={dialogo.fecha} onChange={(e) => setDialogo({ ...dialogo, fecha: e.target.value })} required /></label>
@@ -150,19 +151,19 @@ export default function Tesoreria() {
             {dialogo.error && <p className="aviso error">{dialogo.error}</p>}
             <div className="acciones"><button type="button" onClick={() => setDialogo(null)}>Cancelar</button><button className="primario">Registrar</button></div>
           </form>
-        </div>
+        </Dialogo>
       )}
 
       {anular && (
-        <div className="velo" role="dialog" aria-modal="true">
-          <form className="dialogo" onSubmit={confirmarAnulacion}>
+        <Dialogo titulo="Anular movimiento" alCerrar={() => setAnular(null)}>
+          <form onSubmit={confirmarAnulacion}>
             <h2>Anular movimiento</h2>
             <p>Se anula (o reversa) su asiento y el documento vuelve a quedar con saldo.</p>
             <label>Motivo<input value={anular.motivo} onChange={(e) => setAnular({ ...anular, motivo: e.target.value })} minLength={5} required autoFocus /></label>
             {anular.error && <p className="aviso error">{anular.error}</p>}
             <div className="acciones"><button type="button" onClick={() => setAnular(null)}>Cancelar</button><button className="peligro">Anular</button></div>
           </form>
-        </div>
+        </Dialogo>
       )}
     </section>
   );

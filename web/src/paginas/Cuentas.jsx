@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useEmpresa } from '../App';
 import { q, sb } from '../supabase';
+import { Aviso } from '../componentes';
 
 const TIPOS = ['activo', 'pasivo', 'patrimonio', 'ingreso', 'gasto', 'orden'];
 const CLASIF = {
@@ -78,7 +79,7 @@ export default function Cuentas() {
           {escribe && !nueva && <button className="primario" onClick={() => setNueva({ codigo: '', nombre: '', tipo: 'gasto', clasificacion: 'gasto_operacional', imputable: true, es_efectivo: false })}>+ Nueva cuenta</button>}
         </div>
       </header>
-      {msg && <p className={msg.ok ? 'aviso ok' : 'aviso error'}>{msg.t}</p>}
+      <Aviso msg={msg} />
 
       {nueva && (
         <form className="formulario rejilla" onSubmit={crear}>

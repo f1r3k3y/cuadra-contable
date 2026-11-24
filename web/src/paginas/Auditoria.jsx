@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useEmpresa } from '../App';
 import { rpc } from '../supabase';
 import { ROLES, TIPOS_DOC, csv, hoy, peso } from '../util';
+import { Dialogo, filaAccionable } from '../componentes';
 
 const MODULOS = {
   accesos: 'Accesos', empresas: 'Empresa', miembros: 'Usuarios y roles', documentos: 'Compras y ventas', pagos: 'Tesorería',
@@ -109,7 +110,7 @@ export default function Auditoria() {
   async function exportar() {
     const todas = await rpc('auditoria_consulta', args(buscar, 5000, 0));
     csv(`auditoria_${empresa.rut}_${hoy()}`, todas.map((r) => ({
-      'N°': r.id, 'Fecha y hora': fechaHora(r.en), Usuario: nombre(r), Correo: r.usuario_correo ?? '', IP: r.ip ?? '',
+      'N°': r.id, 'Fecha y hora': fechaHora(r.en), Usuario: nombre(r), Correo: r.usuario_correo ?? '', IP: r.ip ?? '', País: r.pais ?? '', Navegador: r.agente ?? '',
       Módulo: MODULOS[r.tabla] ?? r.tabla, Acción: ACCIONES[r.accion] ?? r.accion, Descripción: describir(r),
       'Registro ID': r.registro_id ?? '', Antes: r.antes ? JSON.stringify(r.antes) : '', Después: r.despues ? JSON.stringify(r.despues) : '', Hash: r.hash,
     })));
@@ -171,7 +172,7 @@ export default function Auditoria() {
             {!filas && !error && <tr><td colSpan={7}>Cargando…</td></tr>}
             {filas?.length === 0 && <tr><td colSpan={7} className="vacio">No hay cambios con esos filtros.</td></tr>}
             {filas?.map((r) => (
-              <tr key={r.id} className="clic" onClick={() => { setDetalle(r); setTodos(false); }}>
+              <tr key={r.id} className="clic" {...filaAccionable(() => { setDetalle(r); setTodos(false); }, 'Ver detalle del cambio')}>
                 <td className="n">{r.id}</td>
                 <td className="nw">{fechaHora(r.en)}</td>
                 <td>{nombre(r)}{r.usuario_correo && <small><br />{r.usuario_correo}</small>}</td>
@@ -207,14 +208,15 @@ export default function Auditoria() {
       </div>
 
       {detalle && (
-        <div className="velo" role="dialog" aria-modal="true" onClick={(e) => e.target === e.currentTarget && setDetalle(null)}>
-          <div className="dialogo ancho-detalle">
+        <Dialogo titulo={`Registro N° ${detalle.id}`} ancho alCerrar={() => setDetalle(null)}>
+          <div>
             <h2>Registro N° {detalle.id}</h2>
             <p>{describir(detalle)}</p>
             <dl className="ficha">
               <dt>Fecha y hora</dt><dd>{fechaHora(detalle.en)}</dd>
               <dt>Usuario</dt><dd>{nombre(detalle)}{detalle.usuario_correo ? ` · ${detalle.usuario_correo}` : ''}</dd>
-              <dt>IP</dt><dd>{detalle.ip ?? '—'}</dd>
+              <dt>IP</dt><dd>{detalle.ip ?? '—'}{detalle.pais ? ` (${detalle.pais})` : ''}</dd>
+              <dt>Navegador</dt><dd>{detalle.agente ?? '—'}</dd>
               <dt>Módulo</dt><dd>{MODULOS[detalle.tabla] ?? detalle.tabla} ({detalle.tabla})</dd>
               <dt>Acción</dt><dd>{ACCIONES[detalle.accion] ?? detalle.accion}</dd>
               <dt>ID del registro</dt><dd><code>{detalle.registro_id ?? '—'}</code></dd>
@@ -239,7 +241,7 @@ export default function Auditoria() {
             </div>
             <div className="acciones"><button className="primario" onClick={() => setDetalle(null)}>Cerrar</button></div>
           </div>
-        </div>
+        </Dialogo>
       )}
     </section>
   );

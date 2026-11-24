@@ -49,7 +49,7 @@ export function Login() {
             <input type="password" autoComplete={modo === 'registro' ? 'new-password' : 'current-password'} value={clave} onChange={(e) => setClave(e.target.value)} required minLength={modo === 'registro' ? 12 : 1} />
           </label>
         )}
-        {msg && <p className={msg.ok ? 'aviso ok' : 'aviso error'}>{msg.t}</p>}
+        {msg && <p className={msg.ok ? 'aviso ok' : 'aviso error'} role={msg.ok ? 'status' : 'alert'}>{msg.t}</p>}
         <button className="primario" disabled={ocupado}>{ocupado ? 'Un momento…' : 'Continuar'}</button>
         <div className="enlaces">
           {modo !== 'entrar' && <button type="button" className="enlace" onClick={() => setModo('entrar')}>Ya tengo cuenta</button>}
@@ -109,7 +109,7 @@ export function DosPasos({ alListo }) {
           <p>Ingresa el código de 6 dígitos de tu app de autenticación.</p>
         )}
         <label data-ayuda="Código de 6 dígitos que muestra tu app de autenticación (Google Authenticator, Microsoft Authenticator u otra). Cambia cada 30 segundos.">Código<input inputMode="numeric" autoComplete="one-time-code" pattern="\d{6}" maxLength={6} value={codigo} onChange={(e) => setCodigo(e.target.value)} required autoFocus /></label>
-        {error && <p className="aviso error">{error}</p>}
+        {error && <p className="aviso error" role="alert">{error}</p>}
         <button className="primario" disabled={!factor}>Verificar</button>
         <button type="button" className="enlace" onClick={() => sb.auth.signOut()}>Salir</button>
       </form>
@@ -132,7 +132,7 @@ export function NuevaClave({ alListo }) {
       <form className="tarjeta-acceso" onSubmit={guardar}>
         <h1>Nueva contraseña</h1>
         <label>Contraseña<input type="password" autoComplete="new-password" value={clave} onChange={(e) => setClave(e.target.value)} required /></label>
-        {error && <p className="aviso error">{error}</p>}
+        {error && <p className="aviso error" role="alert">{error}</p>}
         <button className="primario">Guardar</button>
       </form>
     </div>

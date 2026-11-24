@@ -23,6 +23,12 @@ function etiquetar() {
       el.removeAttribute('data-ayuda'); el.removeAttribute('data-ayuda-auto');
     }
   }
+  // Lectores de pantalla: la ayuda se anuncia como descripción del campo o del elemento
+  for (const el of document.querySelectorAll('[data-ayuda]')) {
+    const texto = el.getAttribute('data-ayuda');
+    const destino = el.tagName === 'LABEL' ? el.querySelector('input, select, textarea') : el;
+    if (destino && destino.getAttribute('aria-description') !== texto) destino.setAttribute('aria-description', texto);
+  }
 }
 
 export default function Ayudas() {
@@ -57,29 +63,46 @@ export default function Ayudas() {
       const el = actual.current;
       if (el && !(e.relatedTarget && el.contains(e.relatedTarget))) ocultar();
     };
+    let toque = false;
+    const puntero = (e) => { toque = e.pointerType === 'touch'; };
     const foco = (e) => {
       const el = e.target.closest?.('[data-ayuda]');
-      if (el && e.target.matches(':focus-visible')) mostrar(el, 0);
+      if (el && (toque || e.target.matches(':focus-visible'))) mostrar(el, 0);
+    };
+    // En pantallas táctiles no hay "pasar el mouse": tocar un título o columna muestra su ayuda
+    const tocar = (e) => {
+      if (!toque) return;
+      const el = e.target.closest?.('[data-ayuda]');
+      if (el && !e.target.closest('input, select, textarea, button, a')) {
+        mostrar(el, 0);
+        clearTimeout(tocar.t);
+        tocar.t = setTimeout(ocultar, 4000);
+      }
     };
     const tecla = (e) => { if (e.key === 'Escape') ocultar(); };
 
+    document.addEventListener('pointerdown', puntero, true);
+    document.addEventListener('click', tocar);
     document.addEventListener('mouseover', sobre);
     document.addEventListener('mouseout', fuera);
     document.addEventListener('focusin', foco);
     document.addEventListener('focusout', ocultar);
     document.addEventListener('keydown', tecla);
     window.addEventListener('scroll', ocultar, true);
-    window.addEventListener('mousedown', ocultar, true);
+    const presion = () => { if (!toque) ocultar(); };
+    window.addEventListener('mousedown', presion, true);
     return () => {
       obs.disconnect();
       clearTimeout(temporizador.current);
+      document.removeEventListener('pointerdown', puntero, true);
+      document.removeEventListener('click', tocar);
       document.removeEventListener('mouseover', sobre);
       document.removeEventListener('mouseout', fuera);
       document.removeEventListener('focusin', foco);
       document.removeEventListener('focusout', ocultar);
       document.removeEventListener('keydown', tecla);
       window.removeEventListener('scroll', ocultar, true);
-      window.removeEventListener('mousedown', ocultar, true);
+      window.removeEventListener('mousedown', presion, true);
     };
   }, []);
 

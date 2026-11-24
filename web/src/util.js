@@ -80,6 +80,11 @@ export const PERMISOS = {
   'auditoria.ver': 'Ver y verificar la auditoría',
 };
 
+export const MESES_LARGOS = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
+// Fecha ISO (AAAA-MM-DD) a formato chileno DD-MM-AAAA
+export const fecha = (iso) => (iso ? String(iso).slice(0, 10).split('-').reverse().join('-') : '');
+
 export const MESES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
 // Exporta filas a CSV (separador ; para Excel en español).
