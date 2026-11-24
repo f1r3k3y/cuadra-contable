@@ -27,7 +27,7 @@ function hoyChile() {
   return new Intl.DateTimeFormat('sv-SE', { timeZone: 'America/Santiago' }).format(new Date());
 }
 
-export default servir(['admin', 'contador', 'operador'], async ({ body, admin, empresa, userId }) => {
+export default servir(['admin', 'contador', 'asistente'], async ({ body, admin, empresa, userId }) => {
   const doc = body.documento as Entrada;
   const enviar = body.enviar !== false;
   if (!doc || !TIPOS_DTE[doc.tipo]) throw new HttpError(400, 'Tipo de documento inválido');

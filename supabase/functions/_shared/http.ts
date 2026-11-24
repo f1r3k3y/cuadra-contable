@@ -19,7 +19,7 @@ export class HttpError extends Error {
   }
 }
 
-export type Rol = 'admin' | 'contador' | 'operador' | 'auditor' | 'lector';
+export type Rol = 'admin' | 'contador' | 'asistente' | 'auditor' | 'lector';
 
 export interface Contexto {
   req: Request;

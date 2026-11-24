@@ -4,7 +4,7 @@ import { HttpError, requerido, servir } from '../../_shared/http.ts';
 import { cargarCertificado, clienteSii } from '../../_shared/contexto.ts';
 import { construirEnvioRecibos, construirRespuestaDte, leerSobre, rutSii } from '../../_shared/sii/mod.ts';
 
-export default servir(['admin', 'contador', 'operador'], async ({ body, admin, empresa, userId, rol }) => {
+export default servir(['admin', 'contador', 'asistente'], async ({ body, admin, empresa, userId, rol }) => {
   const accion = requerido(body.accion as string, 'accion');
 
   if (accion === 'importar') {
@@ -78,7 +78,7 @@ export default servir(['admin', 'contador', 'operador'], async ({ body, admin, e
   }
 
   if (accion === 'aceptar' || accion === 'reclamar' || accion === 'recibo') {
-    if (rol === 'operador') throw new HttpError(403, 'Solo administradores o contadores pueden aceptar o reclamar');
+    if (rol === 'asistente') throw new HttpError(403, 'Solo administradores o contadores pueden aceptar o reclamar');
     const id = requerido(body.recibidoId as string, 'recibidoId');
     const { data: d } = await admin.from('dte_recibidos').select('*').eq('id', id).eq('empresa_id', empresa.id).single();
     if (!d) throw new HttpError(404, 'Documento no encontrado');

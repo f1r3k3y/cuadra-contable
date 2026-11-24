@@ -53,7 +53,7 @@ select t.debe_fallar($$select public.contabilizar_asiento(gen_random_uuid())$$, 
 
 -- 3. Comprobantes
 select t.como('00000000-0000-0000-0000-00000000000a');
-select public.agregar_miembro((select v from t.ids where k = 'emp'), 'beto@ejemplo.cl', 'operador');
+select public.agregar_miembro((select v from t.ids where k = 'emp'), 'beto@ejemplo.cl', 'asistente');
 select public.agregar_miembro((select v from t.ids where k = 'emp'), 'carla@ejemplo.cl', 'lector');
 
 select t.debe_fallar(format($$select public.crear_asiento(%L, current_date, 'Descuadrado', %L::jsonb, 'traspaso', true)$$,

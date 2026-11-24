@@ -16,7 +16,7 @@ const LINEAS = [
 ];
 
 export default function F29() {
-  const { empresa, puede } = useEmpresa();
+  const { empresa, permite } = useEmpresa();
   const [mes, setMes] = useState(hoy().slice(0, 7));
   const [p, setP] = useState(null);
   const [guardadas, setGuardadas] = useState([]);
@@ -43,7 +43,7 @@ export default function F29() {
         </div>
         <div className="filtros">
           <label className="en-linea">Período<input type="month" value={mes} onChange={(e) => setMes(e.target.value)} /></label>
-          {puede('admin', 'contador') && <button className="primario" onClick={guardar}>Guardar propuesta</button>}
+          {permite('f29.guardar') && <button className="primario" onClick={guardar}>Guardar propuesta</button>}
         </div>
       </header>
       {msg && <p className={msg.ok ? 'aviso ok' : 'aviso error'}>{msg.t}</p>}

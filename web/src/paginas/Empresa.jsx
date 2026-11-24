@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useEmpresa } from '../App';
 import { q, rpc, sb } from '../supabase';
-import { MESES, ROLES, rutFormato } from '../util';
+import { MESES, PERMISOS, ROLES, ROL_DESC, rutFormato } from '../util';
 
 export default function Empresa() {
-  const { empresa, puede, usuario, recargarEmpresas } = useEmpresa();
+  const { empresa, permite, rol, usuario, recargarEmpresas } = useEmpresa();
   const [datos, setDatos] = useState(null);
   const [miembros, setMiembros] = useState([]);
   const [periodos, setPeriodos] = useState([]);
@@ -12,9 +12,13 @@ export default function Empresa() {
   const [cadena, setCadena] = useState(null);
   const [invitar, setInvitar] = useState({ correo: '', rol: 'contador' });
   const [msg, setMsg] = useState(null);
-  const admin = puede('admin');
-  const contador = puede('admin', 'contador');
-  const audita = puede('admin', 'auditor');
+  const admin = permite('empresa.editar');
+  const gestionaUsuarios = permite('usuarios.gestionar');
+  const ve = permite('empresa.ver');
+  const cierra = permite('periodos.cerrar');
+  const reabre = permite('periodos.reabrir');
+  const audita = permite('auditoria.ver');
+  const [matriz, setMatriz] = useState(null);
 
   const cargar = useCallback(async () => {
     const [d, m, p] = await Promise.all([
@@ -23,6 +27,7 @@ export default function Empresa() {
       q(sb.from('periodos').select('*').eq('empresa_id', empresa.id).order('anio', { ascending: false }).order('mes', { ascending: false })),
     ]);
     setDatos(d); setMiembros(m); setPeriodos(p);
+    setMatriz(await rpc('matriz_permisos'));
     if (audita) setAuditoria(await q(sb.from('auditoria').select('id, tabla, accion, en, usuario_id, ip').eq('empresa_id', empresa.id).order('id', { ascending: false }).limit(40)));
   }, [empresa.id, audita]);
   useEffect(() => { cargar().catch((e) => setMsg({ ok: false, t: e.message })); }, [cargar]);
@@ -49,8 +54,13 @@ export default function Empresa() {
       <header className="cabecera"><div><h1>{datos.razon_social}</h1><p className="chico">RUT {rutFormato(datos.rut)}</p></div></header>
       {msg && <p className={msg.ok ? 'aviso ok' : 'aviso error'}>{msg.t}</p>}
 
+      <div className="tu-rol">
+        <b>Tu rol: {ROLES[rol]}</b>
+        <span>{ROL_DESC[rol]}</span>
+      </div>
+
       <div className="dos-columnas">
-        <form className="formulario" onSubmit={guardarDatos}>
+        {ve && <form className="formulario" onSubmit={guardarDatos}>
           <h2>Datos de la empresa</h2>
           <fieldset disabled={!admin}>
             <label>Razón social<input value={datos.razon_social} onChange={set('razon_social')} required /></label>
@@ -63,45 +73,63 @@ export default function Empresa() {
             <label>Remanente de crédito fiscal inicial ($)<input type="number" min="0" step="1" value={datos.remanente_inicial} onChange={set('remanente_inicial')} /></label>
             {admin && <div className="acciones"><button className="primario">Guardar datos</button></div>}
           </fieldset>
-        </form>
+        </form>}
 
         <div>
+          {ve && <>
           <h2>Usuarios y roles</h2>
           <table className="tabla"><tbody>
             {miembros.map((m) => (
               <tr key={m.user_id}>
                 <td>{m.perfiles?.nombre ?? '—'}{m.user_id === usuario.id && <small> · tú</small>}</td>
-                <td>{admin && m.user_id !== usuario.id ? (
+                <td>{gestionaUsuarios && m.user_id !== usuario.id ? (
                   <select value={m.rol} aria-label="Rol" onChange={(e) => hacer(() => q(sb.from('miembros').update({ rol: e.target.value }).eq('empresa_id', empresa.id).eq('user_id', m.user_id)), 'Rol actualizado.')()}>
                     {Object.entries(ROLES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                   </select>) : ROLES[m.rol]}</td>
-                <td>{admin && m.user_id !== usuario.id && <button className="enlace" onClick={hacer(() => q(sb.from('miembros').delete().eq('empresa_id', empresa.id).eq('user_id', m.user_id)), 'Usuario quitado de la empresa.')}>Quitar</button>}</td>
+                <td>{gestionaUsuarios && m.user_id !== usuario.id && <button className="enlace" onClick={hacer(() => q(sb.from('miembros').delete().eq('empresa_id', empresa.id).eq('user_id', m.user_id)), 'Usuario quitado de la empresa.')}>Quitar</button>}</td>
               </tr>
             ))}
           </tbody></table>
-          {admin && (
+          {gestionaUsuarios && (
             <form className="formulario en-fila" onSubmit={hacer(async () => { await rpc('agregar_miembro', { p_empresa: empresa.id, p_correo: invitar.correo, p_rol: invitar.rol }); setInvitar({ ...invitar, correo: '' }); }, 'Usuario agregado.')}>
               <label>Correo del usuario<input type="email" value={invitar.correo} onChange={(e) => setInvitar({ ...invitar, correo: e.target.value })} required /></label>
               <label>Rol<select value={invitar.rol} onChange={(e) => setInvitar({ ...invitar, rol: e.target.value })}>{Object.entries(ROLES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>
               <button className="primario">Agregar</button>
             </form>
           )}
-          <p className="chico">La persona debe haber creado su cuenta antes. Contador registra y contabiliza; operador solo deja borradores; auditor y lector solo consultan.</p>
+          {gestionaUsuarios && <p className="chico">La persona debe haber creado su cuenta antes. Revisa abajo qué puede hacer cada rol.</p>}
 
+          </>}
           <h2>Períodos contables</h2>
           <p className="chico">Un mes cerrado no acepta asientos nuevos ni anulaciones.</p>
           <table className="tabla"><tbody>
             {periodos.map((p) => (
               <tr key={p.anio * 100 + p.mes}>
                 <td>{MESES[p.mes - 1]} {p.anio}</td><td><span className={'etiqueta ' + (p.estado === 'cerrado' ? 'anulado' : 'contabilizado')}>{p.estado}</span></td>
-                <td>{contador && (p.estado === 'abierto'
-                  ? <button className="enlace" onClick={hacer(() => rpc('cerrar_periodo', { p_empresa: empresa.id, p_anio: p.anio, p_mes: p.mes }), 'Período cerrado.')}>Cerrar</button>
-                  : admin && <button className="enlace" onClick={hacer(() => rpc('reabrir_periodo', { p_empresa: empresa.id, p_anio: p.anio, p_mes: p.mes }), 'Período reabierto.')}>Reabrir</button>)}</td>
+                <td>{(p.estado === 'abierto'
+                  ? cierra && <button className="enlace" onClick={hacer(() => rpc('cerrar_periodo', { p_empresa: empresa.id, p_anio: p.anio, p_mes: p.mes }), 'Período cerrado.')}>Cerrar</button>
+                  : reabre && <button className="enlace" onClick={hacer(() => rpc('reabrir_periodo', { p_empresa: empresa.id, p_anio: p.anio, p_mes: p.mes }), 'Período reabierto.')}>Reabrir</button>)}</td>
               </tr>
             ))}
           </tbody></table>
         </div>
       </div>
+
+      {matriz && (
+        <>
+          <h2>Qué puede hacer cada rol</h2>
+          <p className="chico">Los permisos se aplican en la base de datos. Basados en la segregación de funciones: quien registra no aprueba, y quien mueve el dinero no contabiliza.</p>
+          <div className="scroll">
+            <table className="tabla compacta matriz">
+              <thead><tr><th>Permiso</th>{Object.keys(ROLES).map((r) => <th key={r} className={'c' + (r === rol ? ' actual' : '')}>{ROLES[r]}</th>)}</tr></thead>
+              <tbody>{Object.entries(PERMISOS).map(([p, t]) => (
+                <tr key={p}><td>{t}</td>{Object.keys(ROLES).map((r) => <td key={r} className={'c' + (r === rol ? ' actual' : '')}>{(matriz[r] ?? []).includes(p) ? '●' : ''}</td>)}</tr>
+              ))}</tbody>
+            </table>
+          </div>
+          <dl className="roles-desc">{Object.entries(ROL_DESC).map(([r, d]) => <div key={r}><dt>{ROLES[r]}</dt><dd>{d}</dd></div>)}</dl>
+        </>
+      )}
 
       {audita && auditoria && (
         <>

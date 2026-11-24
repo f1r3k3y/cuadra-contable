@@ -64,7 +64,7 @@ select t.afirmar(true, 'como contador puede registrar documentos');
 select t.debe_fallar($$select public.agregar_miembro((select v from t.ids where k = 'e2'), 'ana@ejemplo.cl', 'lector')$$, 'administrador');
 select public.probar_rol((select v from t.ids where k = 'e2'), 'admin');
 select t.afirmar((select rol_prueba from public.miembros where user_id = auth.uid() and empresa_id = (select v from t.ids where k = 'e2')) is null, 'vuelve a administrador');
-select public.agregar_miembro((select v from t.ids where k = 'e2'), 'beto@ejemplo.cl', 'operador');
+select public.agregar_miembro((select v from t.ids where k = 'e2'), 'beto@ejemplo.cl', 'asistente');
 select t.como('00000000-0000-0000-0000-00000000000b');
 select t.debe_fallar($$select public.probar_rol((select v from t.ids where k = 'e2'), 'admin')$$, 'Solo un administrador');
 select t.como('00000000-0000-0000-0000-00000000000c');

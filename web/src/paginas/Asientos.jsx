@@ -6,10 +6,11 @@ import { hoy, inicioMes, peso } from '../util';
 const lineaVacia = () => ({ cuenta: '', debe: '', haber: '', glosa: '' });
 
 export default function Asientos() {
-  const { empresa, puede } = useEmpresa();
+  const { empresa, permite } = useEmpresa();
   const [desde, setDesde] = useState(inicioMes());
   const [hasta, setHasta] = useState(hoy());
   const [estado, setEstado] = useState('');
+  const [porAprobar, setPorAprobar] = useState(0);
   const [lista, setLista] = useState([]);
   const [abierto, setAbierto] = useState(null);
   const [lineas, setLineas] = useState({});
@@ -17,14 +18,17 @@ export default function Asientos() {
   const [nuevo, setNuevo] = useState(null);
   const [accion, setAccion] = useState(null);
   const [msg, setMsg] = useState(null);
-  const escribe = puede('admin', 'contador', 'operador');
-  const contabiliza = puede('admin', 'contador');
+  const escribe = permite('asientos.crear');
+  const contabiliza = permite('asientos.contabilizar');
+  const anula = permite('asientos.anular');
 
   const cargar = useCallback(async () => {
     let c = sb.from('asientos').select('*').eq('empresa_id', empresa.id).gte('fecha', desde).lte('fecha', hasta)
       .order('fecha', { ascending: false }).order('numero', { ascending: false }).limit(300);
     if (estado) c = c.eq('estado', estado);
     setLista(await q(c));
+    const { count } = await sb.from('asientos').select('id', { count: 'exact', head: true }).eq('empresa_id', empresa.id).eq('estado', 'borrador');
+    setPorAprobar(count ?? 0);
   }, [empresa.id, desde, hasta, estado]);
 
   useEffect(() => { cargar().catch((e) => setMsg({ ok: false, t: e.message })); }, [cargar]);
@@ -60,7 +64,7 @@ export default function Asientos() {
         p_lineas: ls.map((l) => ({ cuenta_id: l.cuenta, debe: Number(l.debe || 0), haber: Number(l.haber || 0), glosa: l.glosa })),
       });
       setNuevo(null);
-      setMsg({ ok: true, t: contabilizar ? 'Asiento contabilizado.' : 'Asiento guardado como borrador.' });
+      setMsg({ ok: true, t: contabilizar ? 'Asiento contabilizado.' : contabiliza ? 'Asiento guardado como borrador.' : 'Asiento enviado: queda por aprobar del contador.' });
       cargar();
     } catch (err) { setMsg({ ok: false, t: err.message }); }
   }
@@ -82,13 +86,14 @@ export default function Asientos() {
   return (
     <section className="hoja">
       <header className="cabecera">
-        <div><h1>Asientos contables</h1><p className="chico">Un asiento contabilizado no se edita: se anula o se reversa, y todo queda en la auditoría.</p></div>
+        <div><h1>Asientos contables</h1><p className="chico">{contabiliza ? 'Revisa y aprueba los borradores del equipo. Un asiento contabilizado no se edita: se anula o se reversa.' : escribe ? 'Tus asientos quedan en borrador hasta que el contador los apruebe.' : 'Consulta de asientos.'}</p></div>
         <div className="filtros">
           <label className="en-linea">Desde<input type="date" value={desde} onChange={(e) => setDesde(e.target.value)} /></label>
           <label className="en-linea">Hasta<input type="date" value={hasta} onChange={(e) => setHasta(e.target.value)} /></label>
           <label className="en-linea">Estado<select value={estado} onChange={(e) => setEstado(e.target.value)}>
             <option value="">Todos</option><option value="borrador">Borrador</option><option value="contabilizado">Contabilizado</option><option value="anulado">Anulado</option>
           </select></label>
+          {porAprobar > 0 && <button className={estado === 'borrador' ? 'primario' : ''} onClick={() => { setEstado('borrador'); setDesde('2000-01-01'); }}>{contabiliza ? 'Por aprobar' : 'Pendientes de aprobación'} ({porAprobar})</button>}
           {escribe && !nuevo && <button className="primario" onClick={() => setNuevo({ fecha: hoy(), glosa: '', tipo: 'traspaso', lineas: [lineaVacia(), lineaVacia()] })}>+ Nuevo asiento</button>}
         </div>
       </header>
@@ -128,7 +133,7 @@ export default function Asientos() {
           </div>
           <div className="acciones">
             <button onClick={() => setNuevo(null)}>Cancelar</button>
-            <button onClick={() => guardar(false)} disabled={!nuevo.glosa}>Guardar borrador</button>
+            <button className={contabiliza ? '' : 'primario'} onClick={() => guardar(false)} disabled={!nuevo.glosa}>{contabiliza ? 'Guardar borrador' : 'Enviar a aprobación'}</button>
             {contabiliza && <button className="primario" onClick={() => guardar(true)} disabled={!cuadra || !nuevo.glosa}>Contabilizar</button>}
           </div>
         </div>
@@ -145,9 +150,9 @@ export default function Asientos() {
                   <td className="n">{a.numero ?? '—'}</td><td className="nw">{a.fecha}</td><td>{a.tipo}</td><td>{a.glosa}</td>
                   <td className="n">{peso(a.total_debe)}</td><td><span className={'etiqueta ' + a.estado}>{a.estado}</span></td>
                   <td className="nw" onClick={(e) => e.stopPropagation()}>
-                    {a.estado === 'borrador' && contabiliza && <button className="enlace" onClick={() => setAccion({ tipo: 'contabilizar', id: a.id })}>Contabilizar</button>}
-                    {a.estado === 'borrador' && escribe && <button className="enlace" onClick={() => setAccion({ tipo: 'eliminar', id: a.id })}>Eliminar</button>}
-                    {a.estado === 'contabilizado' && contabiliza && a.origen === 'manual' && <>
+                    {a.estado === 'borrador' && contabiliza && <button className="enlace" onClick={() => setAccion({ tipo: 'contabilizar', id: a.id })}>Aprobar</button>}
+                    {a.estado === 'borrador' && escribe && a.origen === 'manual' && <button className="enlace" onClick={() => setAccion({ tipo: 'eliminar', id: a.id })}>Eliminar</button>}
+                    {a.estado === 'contabilizado' && anula && a.origen === 'manual' && <>
                       <button className="enlace" onClick={() => setAccion({ tipo: 'anular', id: a.id, motivo: '', n: a.numero })}>Anular</button>
                       <button className="enlace" onClick={() => setAccion({ tipo: 'reversar', id: a.id, motivo: '', fecha: hoy(), n: a.numero })}>Reversar</button>
                     </>}
@@ -175,7 +180,7 @@ export default function Asientos() {
       {accion && (
         <div className="velo" role="dialog" aria-modal="true">
           <form className="dialogo" onSubmit={ejecutar}>
-            <h2>{{ contabilizar: 'Contabilizar borrador', eliminar: 'Eliminar borrador', anular: `Anular asiento N° ${accion.n}`, reversar: `Reversar asiento N° ${accion.n}` }[accion.tipo]}</h2>
+            <h2>{{ contabilizar: 'Aprobar y contabilizar', eliminar: 'Eliminar borrador', anular: `Anular asiento N° ${accion.n}`, reversar: `Reversar asiento N° ${accion.n}` }[accion.tipo]}</h2>
             {accion.tipo === 'contabilizar' && <p>Se le asignará número correlativo y ya no podrá editarse.</p>}
             {accion.tipo === 'eliminar' && <p>El borrador se elimina; la acción queda en la auditoría.</p>}
             {accion.tipo === 'reversar' && <label>Fecha del reverso<input type="date" value={accion.fecha} onChange={(e) => setAccion({ ...accion, fecha: e.target.value })} required /></label>}

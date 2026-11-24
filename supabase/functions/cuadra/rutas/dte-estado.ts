@@ -3,7 +3,7 @@ import { HttpError, requerido, servir } from '../../_shared/http.ts';
 import { caratula, cargarCertificado, clienteSii } from '../../_shared/contexto.ts';
 import { construirSobre } from '../../_shared/sii/mod.ts';
 
-export default servir(['admin', 'contador', 'operador'], async ({ body, admin, empresa, userId }) => {
+export default servir(['admin', 'contador', 'asistente'], async ({ body, admin, empresa, userId }) => {
   const accion = (body.accion as string) ?? 'consultar';
   const { cert, rutTitular } = await cargarCertificado(admin, empresa.id);
   const cli = clienteSii(empresa, cert);

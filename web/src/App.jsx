@@ -10,6 +10,7 @@ import Cuentas from './paginas/Cuentas';
 import Reportes from './paginas/Reportes';
 import F29 from './paginas/F29';
 import Empresa from './paginas/Empresa';
+import Tesoreria from './paginas/Tesoreria';
 
 const Ctx = createContext(null);
 export const useEmpresa = () => useContext(Ctx);
@@ -65,6 +66,7 @@ function Espacio({ usuario }) {
   const [actual, setActual] = useState(() => sessionStorage.getItem('empresa'));
   const [menu, setMenu] = useState(false);
   const [errorRol, setErrorRol] = useState(null);
+  const [permisos, setPermisos] = useState(null);
 
   const cargar = useCallback(async () => {
     const filas = await q(sb.from('miembros').select('rol, rol_prueba, empresas(id, rut, razon_social, tasa_ppm)').eq('user_id', usuario.id));
@@ -73,6 +75,15 @@ function Espacio({ usuario }) {
   useEffect(() => { cargar(); }, [cargar]);
 
   useEffect(() => { if (actual) sessionStorage.setItem('empresa', actual); }, [actual]);
+
+  const sel0 = lista && (lista.find((f) => f.empresas.id === actual) ?? lista[0]);
+  const claveRol = sel0 ? sel0.empresas.id + (sel0.rol_prueba ?? sel0.rol) : null;
+  useEffect(() => {
+    if (!sel0) return;
+    setPermisos(null);
+    rpc('mis_permisos', { p_empresa: sel0.empresas.id }).then((p) => setPermisos(new Set(p))).catch(() => setPermisos(new Set()));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [claveRol]);
 
   if (!lista) return <div className="cargando">Cargando empresas…</div>;
   const sel = lista.find((f) => f.empresas.id === actual) ?? lista[0];
@@ -89,20 +100,24 @@ function Espacio({ usuario }) {
     rol,
     rolReal: sel.rol,
     usuario,
-    puede: (...roles) => roles.includes(rol),
+    permite: (p) => !!permisos?.has(p),
     recargarEmpresas: cargar,
     cambiar: setActual,
   };
 
-  const nav = [
-    ['/', 'Panel'],
-    ['/documentos', 'Compras y ventas'],
-    ['/asientos', 'Asientos'],
-    ['/reportes', 'Libros y estados'],
-    ['/f29', 'Propuesta F29'],
-    ['/cuentas', 'Plan de cuentas'],
-    ['/empresa', 'Empresa y usuarios'],
+  if (!permisos && actual !== '+') return <div className="cargando">Cargando permisos…</div>;
+
+  const RUTAS = [
+    ['/', 'Panel', 'panel.ver', <Panel />],
+    ['/documentos', 'Compras y ventas', 'documentos.ver', <Documentos />],
+    ['/tesoreria', 'Tesorería', 'tesoreria.ver', <Tesoreria />],
+    ['/asientos', 'Asientos', 'asientos.ver', <Asientos />],
+    ['/reportes', 'Libros y estados', 'reportes.ver', <Reportes />],
+    ['/f29', 'Propuesta F29', 'f29.ver', <F29 />],
+    ['/cuentas', 'Plan de cuentas', 'cuentas.ver', <Cuentas />],
+    ['/empresa', 'Empresa y roles', null, <Empresa />],
   ];
+  const visibles = RUTAS.filter(([, , p]) => !p || ctx.permite(p));
 
   return (
     <Ctx.Provider value={ctx}>
@@ -123,7 +138,7 @@ function Espacio({ usuario }) {
             </label>
           )}
           <nav onClick={() => setMenu(false)}>
-            {nav.map(([a, t]) => <NavLink key={a} to={a} end={a === '/'}>{t}</NavLink>)}
+            {visibles.map(([a, t]) => <NavLink key={a} to={a} end={a === '/'}>{t}</NavLink>)}
           </nav>
           <div className="pie-lateral">
             <div>{usuario.email}</div>
@@ -144,13 +159,7 @@ function Espacio({ usuario }) {
             <NuevaEmpresa usuario={usuario} alCrear={async (id) => { await cargar(); setActual(id); }} alCancelar={() => setActual(sel.empresas.id)} />
           ) : (
             <Routes key={sel.empresas.id + rol}>
-              <Route path="/" element={<Panel />} />
-              <Route path="/documentos" element={<Documentos />} />
-              <Route path="/asientos" element={<Asientos />} />
-              <Route path="/reportes" element={<Reportes />} />
-              <Route path="/f29" element={<F29 />} />
-              <Route path="/cuentas" element={<Cuentas />} />
-              <Route path="/empresa" element={<Empresa />} />
+              {visibles.map(([a, , , el]) => <Route key={a} path={a} element={el} />)}
               <Route path="*" element={<Navigate to="/" />} />
             </Routes>
           )}

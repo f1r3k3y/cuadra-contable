@@ -1,14 +1,17 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Bar, BarChart, CartesianGrid, Legend, Line, ComposedChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { useEmpresa } from '../App';
 import { rpc } from '../supabase';
-import { MESES, num, peso } from '../util';
+import { MESES, ROLES, num, peso } from '../util';
 
 const C = { ingreso: '#1f6f5c', gasto: '#c8371e', linea: '#171513', debito: '#c8371e', credito: '#1f6f5c' };
 const miles = (v) => (Math.abs(v) >= 1e6 ? (v / 1e6).toFixed(1) + ' M' : Math.abs(v) >= 1e3 ? Math.round(v / 1e3) + ' mil' : v);
 
 export default function Panel() {
-  const { empresa } = useEmpresa();
+  const { empresa, permite, rol } = useEmpresa();
+  const [t, setT] = useState(null);
+  const finanzas = permite('reportes.ver');
   const [anio, setAnio] = useState(new Date().getFullYear());
   const [m, setM] = useState(null);
   const [d, setD] = useState(null);
@@ -19,7 +22,8 @@ export default function Panel() {
     Promise.all([
       rpc('metricas_dashboard', { p_empresa: empresa.id, p_anio: anio }),
       rpc('metricas_documentos', { p_empresa: empresa.id, p_anio: anio }),
-    ]).then(([a, b]) => { setM(a); setD(b); }).catch((e) => setError(e.message));
+      permite('tesoreria.ver') ? rpc('resumen_tesoreria', { p_empresa: empresa.id }) : Promise.resolve(null),
+    ]).then(([a, b, c]) => { setM(a); setD(b); setT(c); }).catch((e) => setError(e.message));
   }, [empresa.id, anio]);
 
   if (error) return <section className="hoja"><p className="aviso error">{error}</p></section>;
@@ -31,6 +35,38 @@ export default function Panel() {
   const sinMovs = mensual.every((x) => !x.Ingresos && !x.Gastos);
   const pct = (v) => (v == null ? '—' : num(v) + ' %');
   const veces = (v) => (v == null ? '—' : String(v).replace('.', ','));
+
+  const caja = t ? t.cuentas.reduce((x, c) => x + Number(c.saldo), 0) : k.caja;
+  const pend = [];
+  if (permite('asientos.contabilizar') && m.contabilidad.borradores > 0) pend.push(['/asientos', m.contabilidad.borradores, 'asientos y documentos por aprobar']);
+  if (permite('asientos.crear') && !permite('asientos.contabilizar')) pend.push(['/asientos', m.contabilidad.borradores, 'registros esperando aprobación del contador']);
+  if (permite('documentos.registrar')) pend.push(['/documentos', '+', 'registrar compras y ventas']);
+  if (t && permite('tesoreria.ver')) {
+    pend.push(['/tesoreria', peso(t.porCobrar.total), `por cobrar (${t.porCobrar.documentos} documentos)`]);
+    pend.push(['/tesoreria', peso(t.porPagar.total), `por pagar (${t.porPagar.documentos} documentos)`]);
+    const vencido = Number(t.porCobrar.a90) + Number(t.porCobrar.mas90);
+    if (vencido > 0) pend.push(['/tesoreria', peso(vencido), 'por cobrar con más de 60 días']);
+  }
+  if (permite('periodos.cerrar') && m.contabilidad.periodosAbiertos > 1) pend.push(['/empresa', m.contabilidad.periodosAbiertos, 'meses abiertos por cerrar']);
+  if (permite('f29.ver')) pend.push(['/f29', 'F29', 'revisar la propuesta del mes']);
+  if (permite('auditoria.ver')) pend.push(['/empresa', '✓', 'verificar la integridad de la auditoría']);
+
+  if (!finanzas) {
+    return (
+      <section className="hoja">
+        <header className="cabecera"><div><h1>Caja y bancos {peso(caja)}</h1><p className="chico">{empresa.razon_social} · vista de {ROLES[rol]}</p></div></header>
+        <div className="pendientes">{pend.map(([a, v, txt], i) => <Link key={i} to={a}><b>{v}</b><span>{txt}</span></Link>)}</div>
+        {t && <>
+          <h2>Saldos por cuenta</h2>
+          <table className="tabla"><tbody>{t.cuentas.map((c) => <tr key={c.id}><td>{c.codigo} {c.nombre}</td><td className="n">{peso(c.saldo)}</td></tr>)}</tbody></table>
+        </>}
+        <div className="dos-columnas">
+          <Ranking t="Principales clientes" filas={d.topClientes} />
+          <Ranking t="Principales proveedores" filas={d.topProveedores} />
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="hoja">
@@ -46,10 +82,12 @@ export default function Panel() {
         </label>
       </header>
 
+      {pend.length > 0 && <div className="pendientes">{pend.map(([a, v, txt], i) => <Link key={i} to={a}><b>{v}</b><span>{txt}</span></Link>)}</div>}
+
       <div className="kpis">
         <Kpi t="Ventas netas" v={peso(k.ventas)} />
         <Kpi t="Margen bruto" v={pct(k.margenBruto)} />
-        <Kpi t="Caja y bancos" v={peso(k.caja)} />
+        <Kpi t="Caja y bancos" v={peso(caja)} />
         <Kpi t="Liquidez corriente" v={veces(k.liquidezCorriente)} n="veces" />
         <Kpi t="Por cobrar" v={peso(k.cuentasPorCobrar)} n={k.diasCobro != null ? k.diasCobro + ' días de cobro' : null} />
         <Kpi t="Por pagar" v={peso(k.cuentasPorPagar)} n={k.diasPago != null ? k.diasPago + ' días de pago' : null} />

@@ -6,7 +6,7 @@ import { TIPOS_DOC, csv, hoy, peso, rutFormato, rutValido } from '../util';
 const vacio = { tipo: '33', folio: '', fecha: hoy(), rut: '', razon: '', neto: '', exento: '', ivaNR: '', cuenta: '', glosa: '' };
 
 export default function Documentos() {
-  const { empresa, puede } = useEmpresa();
+  const { empresa, permite } = useEmpresa();
   const [op, setOp] = useState('venta');
   const [mes, setMes] = useState(hoy().slice(0, 7));
   const [docs, setDocs] = useState([]);
@@ -15,12 +15,14 @@ export default function Documentos() {
   const [abierto, setAbierto] = useState(false);
   const [msg, setMsg] = useState(null);
   const [anular, setAnular] = useState(null);
-  const escribe = puede('admin', 'contador');
+  const escribe = permite('documentos.registrar');
+  const anula = permite('documentos.anular');
+  const aprueba = permite('asientos.contabilizar');
 
   const cargar = useCallback(async () => {
     const [a, m] = mes.split('-').map(Number);
     const fin = new Date(Date.UTC(a, m, 0)).toISOString().slice(0, 10);
-    setDocs(await q(sb.from('documentos').select('*').eq('empresa_id', empresa.id).eq('operacion', op)
+    setDocs(await q(sb.from('documentos_saldo').select('*').eq('empresa_id', empresa.id).eq('operacion', op)
       .gte('fecha', mes + '-01').lte('fecha', fin).order('fecha').order('folio')));
   }, [empresa.id, op, mes]);
 
@@ -46,7 +48,7 @@ export default function Documentos() {
         p_rut: f.rut, p_razon: f.razon, p_neto: exentoTipo ? 0 : neto, p_exento: exento,
         p_iva_no_recuperable: op === 'compra' ? Number(f.ivaNR || 0) : 0, p_cuenta: f.cuenta || null, p_glosa: f.glosa || null,
       });
-      setMsg({ ok: true, t: 'Documento registrado y contabilizado.' });
+      setMsg({ ok: true, t: aprueba ? 'Documento registrado y contabilizado.' : 'Documento registrado. Queda por aprobar del contador antes de afectar los libros.' });
       setF({ ...vacio, tipo: f.tipo, fecha: f.fecha });
       if (f.fecha.slice(0, 7) !== mes) setMes(f.fecha.slice(0, 7)); else cargar();
     } catch (err) { setMsg({ ok: false, t: err.message }); }
@@ -116,28 +118,32 @@ export default function Documentos() {
             <span>IVA 19 %: <b>{peso(exentoTipo ? 0 : iva)}</b></span>
             <span>Total: <b>{peso((exentoTipo ? 0 : neto + iva) + exento)}</b></span>
           </div>
-          <div className="acciones ancho"><button className="primario">Registrar y contabilizar</button></div>
+          <div className="acciones ancho"><button className="primario">{aprueba ? 'Registrar y contabilizar' : 'Registrar (queda por aprobar)'}</button></div>
         </form>
       )}
 
       <div className="scroll">
         <table className="tabla">
-          <thead><tr><th>Fecha</th><th>Tipo</th><th className="n">Folio</th><th>RUT</th><th>Razón social</th><th className="n">Neto</th><th className="n">Exento</th><th className="n">IVA</th><th className="n">Total</th><th></th></tr></thead>
+          <thead><tr><th>Fecha</th><th>Tipo</th><th className="n">Folio</th><th>RUT</th><th>Razón social</th><th className="n">Neto</th><th className="n">Exento</th><th className="n">IVA</th><th className="n">Total</th><th className="n">Saldo</th><th>Estado</th><th></th></tr></thead>
           <tbody>
-            {docs.length === 0 && <tr><td colSpan={10} className="vacio">No hay documentos en este mes.</td></tr>}
+            {docs.length === 0 && <tr><td colSpan={12} className="vacio">No hay documentos en este mes.</td></tr>}
             {docs.map((d) => (
               <tr key={d.id} className={d.estado === 'anulado' ? 'anulado' : ''}>
                 <td className="nw">{d.fecha}</td><td title={TIPOS_DOC[d.tipo]}>{d.tipo}</td><td className="n">{d.folio}</td>
                 <td className="nw">{rutFormato(d.rut)}</td><td>{d.razon_social}</td>
                 <td className="n">{peso(d.neto)}</td><td className="n">{peso(d.exento)}</td><td className="n">{peso(d.iva)}</td><td className="n">{peso(d.total)}</td>
-                <td>{d.estado === 'anulado' ? <span className="etiqueta" title={d.motivo_anulacion}>Anulado</span>
-                  : escribe && <button className="enlace" onClick={() => setAnular({ id: d.id, folio: d.folio, motivo: '' })}>Anular</button>}</td>
+                <td className="n">{d.estado === 'vigente' && d.tipo !== 61 ? peso(d.saldo) : ''}</td>
+                <td>{d.estado === 'anulado' ? <span className="etiqueta anulado" title={d.motivo_anulacion}>Anulado</span>
+                  : d.asiento_estado === 'borrador' ? <span className="etiqueta borrador">Por aprobar</span>
+                  : d.tipo !== 61 && Number(d.saldo) === 0 ? <span className="etiqueta contabilizado">{op === 'venta' ? 'Cobrado' : 'Pagado'}</span>
+                  : <span className="etiqueta">Vigente</span>}</td>
+                <td>{d.estado === 'vigente' && anula && <button className="enlace" onClick={() => setAnular({ id: d.id, folio: d.folio, motivo: '' })}>Anular</button>}</td>
               </tr>
             ))}
           </tbody>
           {docs.length > 0 && (
             <tfoot><tr><td colSpan={5}>Totales vigentes (notas de crédito restan)</td>
-              <td className="n">{peso(tot.neto)}</td><td className="n">{peso(tot.exento)}</td><td className="n">{peso(tot.iva)}</td><td className="n">{peso(tot.total)}</td><td></td></tr></tfoot>
+              <td className="n">{peso(tot.neto)}</td><td className="n">{peso(tot.exento)}</td><td className="n">{peso(tot.iva)}</td><td className="n">{peso(tot.total)}</td><td colSpan={3}></td></tr></tfoot>
           )}
         </table>
       </div>

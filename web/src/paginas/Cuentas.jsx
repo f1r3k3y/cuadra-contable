@@ -19,13 +19,13 @@ const AUTOMATICAS = [
 ];
 
 export default function Cuentas() {
-  const { empresa, puede } = useEmpresa();
+  const { empresa, permite } = useEmpresa();
   const [cuentas, setCuentas] = useState([]);
   const [conf, setConf] = useState(null);
   const [filtro, setFiltro] = useState('');
   const [nueva, setNueva] = useState(null);
   const [msg, setMsg] = useState(null);
-  const escribe = puede('admin', 'contador');
+  const escribe = permite('cuentas.gestionar');
 
   const cargar = useCallback(async () => {
     const [c, k] = await Promise.all([
