@@ -172,6 +172,8 @@ export default function Empresa() {
         </>
       )}
 
+      <AlertasCorreo empresa={empresa} usuario={usuario} />
+
       <MisAutenticadores />
 
       {cierre && (
@@ -240,6 +242,47 @@ function CierreEjercicio({ empresa }) {
           </form>
         </Dialogo>
       )}
+    </>
+  );
+}
+
+// Alertas por correo: cada usuario decide si las recibe para esta empresa (plazos del F29 y Previred, pagos por vencer, pendientes de la semana).
+function AlertasCorreo({ empresa, usuario }) {
+  const [activo, setActivo] = useState(null);
+  const [envios, setEnvios] = useState([]);
+  const [msg, setMsg] = useState(null);
+  const [enviando, setEnviando] = useState(false);
+  const cargar = useCallback(async () => {
+    const [p, e] = await Promise.all([
+      q(sb.from('preferencias_alertas').select('activo').eq('empresa_id', empresa.id).eq('user_id', usuario.id).maybeSingle()),
+      q(sb.from('envios_alertas').select('fecha, estado, error, creado_en').eq('user_id', usuario.id).order('creado_en', { ascending: false }).limit(5)),
+    ]);
+    setActivo(!!p?.activo); setEnvios(e);
+  }, [empresa.id, usuario.id]);
+  useEffect(() => { cargar().catch((err) => setMsg({ ok: false, t: err.message })); }, [cargar]);
+
+  async function cambiar(v) {
+    try { await rpc('guardar_preferencia_alertas', { p_empresa: empresa.id, p_activo: v }); setActivo(v); setMsg({ ok: true, t: v ? `Recibirás las alertas de ${empresa.razon_social} en ${usuario.email}.` : 'Alertas desactivadas para esta empresa.' }); }
+    catch (err) { setMsg({ ok: false, t: err.message }); }
+  }
+  async function probar() {
+    setEnviando(true); setMsg(null);
+    try {
+      const { data, error } = await sb.functions.invoke('alertas', { body: { prueba: true } });
+      if (error) { let t = error.message; try { t = (await error.context.json()).error ?? t; } catch { /* sin detalle */ } throw new Error(t); }
+      setMsg({ ok: true, t: `Correo de prueba enviado a ${data.correo}. Revisa también la carpeta de spam.` }); cargar();
+    } catch (err) { setMsg({ ok: false, t: err.message }); } finally { setEnviando(false); }
+  }
+  if (activo === null) return null;
+  return (
+    <>
+      <h2>Alertas por correo</h2>
+      <p className="chico">Un correo por la mañana, solo cuando hay algo que atender: F29 por vencer (del 14 al 20), cotizaciones en Previred (del 9 al 13), pagos que vencen en 3 días y, los lunes, vencidos, aprobaciones y cartola pendiente. Cada aviso depende de tu rol.</p>
+      <label className="en-linea"><input type="checkbox" checked={activo} onChange={(e) => cambiar(e.target.checked)} /> Recibir las alertas de {empresa.razon_social} en {usuario.email}</label>
+      <Aviso msg={msg} />
+      {activo && <div className="acciones izquierda"><button onClick={probar} disabled={enviando}>{enviando ? 'Enviando…' : 'Enviar correo de prueba'}</button></div>}
+      {envios.length > 0 && <table className="tabla compacta"><tbody>{envios.map((e) => (
+        <tr key={e.creado_en}><td>{new Date(e.creado_en).toLocaleString('es-CL')}</td><td>{{ enviado: 'Enviado', prueba: 'Prueba enviada', error: 'Error' }[e.estado]}</td><td className="chico">{e.error}</td></tr>))}</tbody></table>}
     </>
   );
 }
