@@ -45,7 +45,7 @@ export default function F29() {
   }
 
   async function guardar() {
-    try { await rpc('guardar_f29', { p_empresa: empresa.id, p_periodo: periodo }); setMsg({ ok: true, t: 'Propuesta guardada. Su remanente se usará en el mes siguiente.' }); cargar(); }
+    try { await rpc('guardar_f29', { p_empresa: empresa.id, p_periodo: periodo }); setMsg({ ok: true, t: 'Propuesta guardada. Cuando declares en sii.cl, márcala como presentada para fijarla y pasar su remanente al mes siguiente.' }); cargar(); }
     catch (e) { setMsg({ ok: false, t: e.message }); }
   }
 

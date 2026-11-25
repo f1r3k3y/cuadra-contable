@@ -59,7 +59,7 @@ export default function Documentos() {
 
   const padresExcluidos = new Set(cuentas.filter((c) => excluidas.has(c.id)).map((c) => c.padre_id).filter(Boolean));
   const opciones = cuentas.filter((c) => (op === 'venta' ? c.tipo === 'ingreso'
-    : c.tipo === 'gasto' || (c.tipo === 'activo' && !c.es_efectivo && !excluidas.has(c.id) && !padresExcluidos.has(c.padre_id))));
+    : c.tipo === 'gasto' || (c.tipo === 'activo' && !c.es_efectivo && !excluidas.has(c.id) && !padresExcluidos.has(c.padre_id) && !/acumulad/i.test(c.nombre))));
   const esBoleta = f.tipo === '39';
   const neto = esBoleta ? Math.round(Number(f.totalBoleta || 0) / 1.19) : Number(f.neto || 0), exento = Number(f.exento || 0);
   const iva = Math.round(neto * 0.19);
