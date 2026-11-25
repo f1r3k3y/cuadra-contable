@@ -13,7 +13,8 @@ insert into t.ids values ('e2', (select id from public.empresas where rut = '760
 select public.registrar_documento((select v from t.ids where k = 'e2'), 'venta', 33, 101, '2026-10-05', '96.790.240-3', 'Cliente Uno', 1000000);
 select public.registrar_documento((select v from t.ids where k = 'e2'), 'compra', 33, 9001, '2026-10-06', '77.123.456-9', 'Proveedor Uno', 400000, 0, 19000);
 select public.registrar_documento((select v from t.ids where k = 'e2'), 'venta', 34, 102, '2026-10-07', '96.790.240-3', 'Cliente Uno', 0, 50000);
-select public.registrar_documento((select v from t.ids where k = 'e2'), 'venta', 61, 7, '2026-10-08', '96.790.240-3', 'Cliente Uno', 100000);
+select public.registrar_documento(p_empresa := (select v from t.ids where k = 'e2'), p_operacion := 'venta', p_tipo := 61, p_folio := 7, p_fecha := '2026-10-08', p_rut := '96.790.240-3', p_razon := 'Cliente Uno', p_neto := 100000,
+  p_referencia := (select id from public.documentos where empresa_id = (select v from t.ids where k = 'e2') and tipo = 33 and folio = 101));
 
 select t.afirmar((select iva from public.documentos where folio = 101) = 190000, 'IVA calculado al 19 %');
 select t.afirmar((select count(*) from public.documentos d join public.asientos a on a.id = d.asiento_id

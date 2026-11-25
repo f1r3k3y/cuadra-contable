@@ -55,17 +55,35 @@ export default function Asientos() {
     setNuevo({ ...nuevo, lineas: ls });
   }
 
+  async function editar(a) {
+    setMsg(null);
+    try {
+      const l = await q(sb.from('asiento_lineas').select('cuenta_id, debe, haber, glosa, auxiliar_id, centro_costo_id, documento_tipo, documento_folio').eq('asiento_id', a.id).order('linea'));
+      setNuevo({
+        id: a.id, fecha: a.fecha, glosa: a.glosa, tipo: a.tipo,
+        lineas: l.map((x) => ({ cuenta: x.cuenta_id, debe: Number(x.debe) ? String(Number(x.debe)) : '', haber: Number(x.haber) ? String(Number(x.haber)) : '', glosa: x.glosa ?? '',
+          extra: { auxiliar_id: x.auxiliar_id, centro_costo_id: x.centro_costo_id, documento_tipo: x.documento_tipo, documento_folio: x.documento_folio } })),
+      });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (err) { setMsg({ ok: false, t: err.message }); }
+  }
+
   async function guardar(contabilizar) {
     setMsg(null);
     const ls = nuevo.lineas.filter((l) => l.cuenta && (Number(l.debe) > 0 || Number(l.haber) > 0));
     if (ls.length < 2) return setMsg({ ok: false, t: 'El asiento necesita al menos dos líneas con cuenta y monto.' });
     try {
-      await rpc('crear_asiento', {
-        p_empresa: empresa.id, p_fecha: nuevo.fecha, p_glosa: nuevo.glosa, p_tipo: nuevo.tipo, p_contabilizar: contabilizar,
-        p_lineas: ls.map((l) => ({ cuenta_id: l.cuenta, debe: Number(l.debe || 0), haber: Number(l.haber || 0), glosa: l.glosa })),
-      });
+      const p_lineas = ls.map((l) => ({ ...(l.extra ?? {}), cuenta_id: l.cuenta, debe: Number(l.debe || 0), haber: Number(l.haber || 0), glosa: l.glosa }));
+      if (nuevo.id) {
+        await rpc('editar_asiento', { p_id: nuevo.id, p_fecha: nuevo.fecha, p_glosa: nuevo.glosa, p_tipo: nuevo.tipo, p_lineas });
+        if (contabilizar) await rpc('contabilizar_asiento', { p_id: nuevo.id });
+      } else {
+        await rpc('crear_asiento', { p_empresa: empresa.id, p_fecha: nuevo.fecha, p_glosa: nuevo.glosa, p_tipo: nuevo.tipo, p_contabilizar: contabilizar, p_lineas });
+      }
+      const editado = Boolean(nuevo.id);
       setNuevo(null);
-      setMsg({ ok: true, t: contabilizar ? 'Asiento contabilizado.' : contabiliza ? 'Asiento guardado como borrador.' : 'Asiento enviado: queda por aprobar del contador.' });
+      setLineas({});
+      setMsg({ ok: true, t: contabilizar ? 'Asiento contabilizado.' : editado ? 'Borrador actualizado.' : contabiliza ? 'Asiento guardado como borrador.' : 'Asiento enviado: queda por aprobar del contador.' });
       cargar();
     } catch (err) { setMsg({ ok: false, t: err.message }); }
   }
@@ -87,7 +105,7 @@ export default function Asientos() {
   return (
     <section className="hoja">
       <header className="cabecera">
-        <div><h1>Asientos contables</h1><p className="chico">{contabiliza ? 'Revisa y aprueba los borradores del equipo. Un asiento contabilizado no se edita: se anula o se reversa.' : escribe ? 'Tus asientos quedan en borrador hasta que el contador los apruebe.' : 'Consulta de asientos.'}</p></div>
+        <div><h1>Asientos contables</h1><p className="chico">{contabiliza ? 'Revisa y aprueba los borradores del equipo. Los borradores se pueden editar; un asiento contabilizado no: se anula o se reversa.' : escribe ? 'Tus asientos quedan en borrador hasta que el contador los apruebe.' : 'Consulta de asientos.'}</p></div>
         <div className="filtros">
           <label className="en-linea">Desde<input type="date" value={desde} onChange={(e) => setDesde(e.target.value)} /></label>
           <label className="en-linea">Hasta<input type="date" value={hasta} onChange={(e) => setHasta(e.target.value)} /></label>
@@ -103,6 +121,7 @@ export default function Asientos() {
 
       {nuevo && (
         <div className="formulario">
+          {nuevo.id && <h2>Editar borrador</h2>}
           <div className="rejilla">
             <label>Fecha<input type="date" value={nuevo.fecha} onChange={(e) => setNuevo({ ...nuevo, fecha: e.target.value })} /></label>
             <label data-ayuda="Clase de comprobante: ingreso (entra dinero), egreso (sale dinero), traspaso (sin movimiento de caja, ej. provisiones o ajustes) o apertura (saldos iniciales).">Tipo<select value={nuevo.tipo} onChange={(e) => setNuevo({ ...nuevo, tipo: e.target.value })}>
@@ -134,7 +153,7 @@ export default function Asientos() {
           </div>
           <div className="acciones">
             <button onClick={() => setNuevo(null)}>Cancelar</button>
-            <button className={contabiliza ? '' : 'primario'} onClick={() => guardar(false)} disabled={!nuevo.glosa}>{contabiliza ? 'Guardar borrador' : 'Enviar a aprobación'}</button>
+            <button className={contabiliza ? '' : 'primario'} onClick={() => guardar(false)} disabled={!nuevo.glosa}>{nuevo.id ? 'Guardar cambios' : contabiliza ? 'Guardar borrador' : 'Enviar a aprobación'}</button>
             {contabiliza && <button className="primario" onClick={() => guardar(true)} disabled={!cuadra || !nuevo.glosa}>Contabilizar</button>}
           </div>
         </div>
@@ -152,7 +171,10 @@ export default function Asientos() {
                   <td className="n">{peso(a.total_debe)}</td><td><span className={'etiqueta ' + a.estado}>{a.estado}</span></td>
                   <td className="nw" onClick={(e) => e.stopPropagation()}>
                     {a.estado === 'borrador' && contabiliza && <button className="enlace" onClick={() => setAccion({ tipo: 'contabilizar', id: a.id })}>Aprobar</button>}
-                    {a.estado === 'borrador' && escribe && a.origen === 'manual' && <button className="enlace" onClick={() => setAccion({ tipo: 'eliminar', id: a.id })}>Eliminar</button>}
+                    {a.estado === 'borrador' && escribe && a.origen === 'manual' && <>
+                      <button className="enlace" onClick={() => editar(a)} disabled={Boolean(nuevo)}>Editar</button>
+                      <button className="enlace" onClick={() => setAccion({ tipo: 'eliminar', id: a.id })}>Eliminar</button>
+                    </>}
                     {a.estado === 'contabilizado' && anula && a.origen === 'manual' && <>
                       <button className="enlace" onClick={() => setAccion({ tipo: 'anular', id: a.id, motivo: '', n: a.numero })}>Anular</button>
                       <button className="enlace" onClick={() => setAccion({ tipo: 'reversar', id: a.id, motivo: '', fecha: hoy(), n: a.numero })}>Reversar</button>

@@ -25,7 +25,7 @@ export default function Tesoreria() {
       setMovs(await q(sb.from('pagos').select('*, documentos(tipo, folio, razon_social), cuentas(codigo, nombre)').eq('empresa_id', empresa.id).order('fecha', { ascending: false }).limit(200)));
     } else {
       setDocs(await q(sb.from('documentos_saldo').select('*').eq('empresa_id', empresa.id)
-        .eq('operacion', vista === 'cobrar' ? 'venta' : 'compra').eq('estado', 'vigente').neq('tipo', 61).gt('saldo', 0).order('fecha')));
+        .eq('operacion', vista === 'cobrar' ? 'venta' : 'compra').eq('estado', 'vigente').neq('tipo', 61).gt('saldo', 0).order('vence')));
     }
   }, [empresa.id, vista]);
   useEffect(() => { cargar().catch((e) => setMsg({ ok: false, t: e.message })); }, [cargar]);
@@ -76,10 +76,11 @@ export default function Tesoreria() {
           <div>
             <h2>Antigüedad {vista === 'cobrar' ? 'de cuentas por cobrar' : 'de cuentas por pagar'}</h2>
             <div className="tramos">
-              <div><span>0 a 30 días</span><b>{peso(tramos.a30)}</b></div>
-              <div><span>31 a 60</span><b>{peso(tramos.a60)}</b></div>
-              <div className="vencido"><span>61 a 90</span><b>{peso(tramos.a90)}</b></div>
-              <div className="vencido"><span>Más de 90</span><b>{peso(tramos.mas90)}</b></div>
+              <div><span>Por vencer</span><b>{peso(tramos.porVencer ?? 0)}</b></div>
+              <div><span>Vencido 1 a 30</span><b>{peso(tramos.a30)}</b></div>
+              <div className="vencido"><span>Vencido 31 a 60</span><b>{peso(tramos.a60)}</b></div>
+              <div className="vencido"><span>Vencido 61 a 90</span><b>{peso(tramos.a90)}</b></div>
+              <div className="vencido"><span>Vencido más de 90</span><b>{peso(tramos.mas90)}</b></div>
             </div>
           </div>
         )}
@@ -90,15 +91,16 @@ export default function Tesoreria() {
           <h2>{vista === 'cobrar' ? 'Documentos por cobrar' : 'Documentos por pagar'}</h2>
           <div className="scroll">
             <table className="tabla">
-              <thead><tr><th>Fecha</th><th className="n">Días</th><th>Documento</th><th>{vista === 'cobrar' ? 'Cliente' : 'Proveedor'}</th><th className="n">Total</th><th className="n">Saldo</th><th></th></tr></thead>
+              <thead><tr><th>Fecha</th><th>Vence</th><th className="n">Días vencido</th><th>Documento</th><th>{vista === 'cobrar' ? 'Cliente' : 'Proveedor'}</th><th className="n">Total</th><th className="n">Saldo</th><th></th></tr></thead>
               <tbody>
-                {docs.length === 0 && <tr><td colSpan={7} className="vacio">No hay saldos pendientes.</td></tr>}
+                {docs.length === 0 && <tr><td colSpan={8} className="vacio">No hay saldos pendientes.</td></tr>}
                 {docs.map((d) => (
                   <tr key={d.id}>
-                    <td className="nw">{fecha(d.fecha)}</td><td className={'n' + (dias(d.fecha) > 60 ? ' error-texto' : '')}>{dias(d.fecha)}</td>
+                    <td className="nw">{fecha(d.fecha)}</td><td className="nw">{fecha(d.vence)}</td>
+                    <td className={'n' + (dias(d.vence) > 0 ? ' error-texto' : '')}>{dias(d.vence) > 0 ? dias(d.vence) : '—'}</td>
                     <td title={TIPOS_DOC[d.tipo]}>{d.tipo} N° {d.folio}{d.asiento_estado !== 'contabilizado' && <small> · por aprobar</small>}</td>
                     <td>{d.razon_social}<small> · {rutFormato(d.rut)}</small></td>
-                    <td className="n">{peso(d.total)}</td><td className="n">{peso(d.saldo)}</td>
+                    <td className="n">{peso(d.total)}</td><td className="n" title={Number(d.notas_credito) > 0 ? `Rebajado por notas de crédito: ${peso(d.notas_credito)}` : undefined}>{peso(d.saldo)}</td>
                     <td>{registra && d.asiento_estado === 'contabilizado' && (
                       <button className="enlace" onClick={() => setDialogo({ doc: d, fecha: hoy(), monto: d.saldo, cuenta: res.cuentas[0]?.id ?? '', medio: 'transferencia', referencia: '' })}>
                         {vista === 'cobrar' ? 'Registrar cobro' : 'Registrar pago'}

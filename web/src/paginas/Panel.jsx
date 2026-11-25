@@ -44,8 +44,10 @@ export default function Panel() {
   if (t && permite('tesoreria.ver')) {
     pend.push(['/tesoreria', peso(t.porCobrar.total), `por cobrar (${t.porCobrar.documentos} documentos)`]);
     pend.push(['/tesoreria', peso(t.porPagar.total), `por pagar (${t.porPagar.documentos} documentos)`]);
-    const vencido = Number(t.porCobrar.a90) + Number(t.porCobrar.mas90);
-    if (vencido > 0) pend.push(['/tesoreria', peso(vencido), 'por cobrar con más de 60 días']);
+    const vencido = Number(t.porCobrar.vencido ?? 0);
+    if (vencido > 0) pend.push(['/tesoreria', peso(vencido), 'por cobrar ya vencido']);
+    const pagoVencido = Number(t.porPagar.vencido ?? 0);
+    if (pagoVencido > 0) pend.push(['/tesoreria', peso(pagoVencido), 'por pagar ya vencido']);
   }
   if (permite('periodos.cerrar') && m.contabilidad.periodosAbiertos > 1) pend.push(['/empresa', m.contabilidad.periodosAbiertos, 'meses abiertos por cerrar']);
   if (permite('f29.ver')) pend.push(['/f29', 'F29', 'revisar la propuesta del mes']);
