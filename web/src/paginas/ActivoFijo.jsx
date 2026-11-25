@@ -92,7 +92,7 @@ export default function ActivoFijo() {
   async function depreciar() {
     try {
       const r = await rpc('depreciar_mes', { p_empresa: empresa.id, p_periodo: mes.replace('-', '') });
-      setMsg({ ok: true, t: `Depreciación de ${MESES_LARGOS[Number(mes.slice(5)) - 1].toLowerCase()}: ${r.activos} activos por ${peso(r.total)} (asiento N° ${r.asiento ?? '—'}${r.estado === 'borrador' ? ', por aprobar' : ''}).` });
+      setMsg({ ok: true, t: `Depreciación de ${MESES_LARGOS[Number(mes.slice(5)) - 1].toLowerCase()}: ${r.activos} ${r.activos === 1 ? 'bien' : 'bienes'} por ${peso(r.total)} (asiento N° ${r.asiento ?? '—'}${r.estado === 'borrador' ? ', por aprobar' : ''}).` });
       cargar();
     } catch (err) { setMsg({ ok: false, t: err.message }); }
   }
@@ -119,7 +119,7 @@ export default function ActivoFijo() {
       <header className="cabecera">
         <div>
           <h1>Activo fijo · valor libro {peso(tot('valor_libro'))}</h1>
-          <p className="chico">{vigentes.length} bienes en uso · costo {peso(tot('valor'))} · depreciación acumulada {peso(tot('depreciacion_acumulada'))}. Depreciación lineal según la vida útil del SII.</p>
+          <p className="chico">{vigentes.length} {vigentes.length === 1 ? 'bien' : 'bienes'} en uso · costo {peso(tot('valor'))} · depreciación acumulada {peso(tot('depreciacion_acumulada'))}. Depreciación lineal según la vida útil del SII.</p>
         </div>
         <div className="filtros">
           {gestiona && <><SelectorMes valor={mes} alCambiar={setMes} /><button className="primario" onClick={depreciar} disabled={!vigentes.length}>Depreciar {MESES_LARGOS[Number(mes.slice(5)) - 1].toLowerCase()}</button></>}
