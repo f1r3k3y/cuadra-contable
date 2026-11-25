@@ -9,7 +9,7 @@ const MODULOS = {
   asientos: 'Asientos', asiento_lineas: 'Líneas de asiento', cuentas: 'Plan de cuentas', configuracion_cuentas: 'Cuentas automáticas',
   periodos: 'Períodos', f29_declaraciones: 'F29', auxiliares: 'Clientes y proveedores', centros_costo: 'Centros de costo',
   dte_emitidos: 'DTE emitidos', dte_recibidos: 'DTE recibidos', certificados: 'Certificados', cafs: 'Folios (CAF)',
-  remuneraciones: 'Remuneraciones', remuneracion_lineas: 'Detalle de remuneraciones', cartola_movimientos: 'Conciliación bancaria', rcv_registros: 'RCV del SII',
+  remuneraciones: 'Remuneraciones', remuneracion_lineas: 'Detalle de remuneraciones', cartola_movimientos: 'Conciliación bancaria', rcv_registros: 'RCV del SII', activos_fijos: 'Activo fijo', depreciaciones: 'Depreciaciones', reglas_conciliacion: 'Reglas de conciliación',
 };
 const ACCIONES = { INSERT: 'Creación', UPDATE: 'Modificación', DELETE: 'Eliminación' };
 const PAGINA = 100;

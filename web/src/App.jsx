@@ -17,6 +17,8 @@ const Honorarios = lazy(() => import('./paginas/Honorarios'));
 const Remuneraciones = lazy(() => import('./paginas/Remuneraciones'));
 const Conciliacion = lazy(() => import('./paginas/Conciliacion'));
 const Sii = lazy(() => import('./paginas/Sii'));
+const ActivoFijo = lazy(() => import('./paginas/ActivoFijo'));
+const Cartera = lazy(() => import('./paginas/Cartera'));
 
 // Enlace de invitación: https://…/#invitacion=TOKEN. Se guarda en la pestaña y se borra de la barra de direcciones.
 {
@@ -149,12 +151,14 @@ function Espacio({ usuario }) {
     ['/remuneraciones', 'Remuneraciones', 'remuneraciones.ver', <Remuneraciones />],
     ['/tesoreria', 'Tesorería', 'tesoreria.ver', <Tesoreria />],
     ['/conciliacion', 'Conciliación bancaria', 'conciliacion.ver', <Conciliacion />],
+    ['/activos', 'Activo fijo', 'activos.ver', <ActivoFijo />],
     ['/asientos', 'Asientos', 'asientos.ver', <Asientos />],
     ['/reportes', 'Libros y estados', 'reportes.ver', <Reportes />],
     ['/f29', 'Propuesta F29', 'f29.ver', <F29 />],
     ['/sii', 'SII y RCV', 'rcv.ver', <Sii />],
     ['/cuentas', 'Plan de cuentas', 'cuentas.ver', <Cuentas />],
     ['/auditoria', 'Auditoría', 'auditoria.ver', <Auditoria />],
+    ...(lista.length > 1 ? [['/cartera', 'Mis empresas', null, <Cartera />]] : []),
     ['/empresa', 'Empresa y roles', null, <Empresa />],
   ];
   const visibles = RUTAS.filter(([, , p]) => !p || ctx.permite(p));

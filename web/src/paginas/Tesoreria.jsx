@@ -129,13 +129,13 @@ export default function Tesoreria() {
       {vista !== 'movimientos' ? (
         <>
           <h2>{vista === 'cobrar' ? 'Documentos por cobrar' : 'Documentos por pagar'}</h2>
-          {registra && sel.size > 0 && (
+          {registra && seleccionables.length > 1 && (
             <div className="barra-seleccion" role="status">
-              <span>{sel.size} seleccionados · saldo {peso(totalElegido)}</span>
-              <button className="primario" onClick={() => setMasivo({ fecha: hoy(), cuenta: cuentaPara('transferencia'), medio: 'transferencia', referencia: '' })}>
+              <span>{sel.size ? `${sel.size} seleccionados · saldo ${peso(totalElegido)}` : `Marca varios documentos para ${vista === 'cobrar' ? 'cobrarlos' : 'pagarlos'} de una vez`}</span>
+              <button className="primario" disabled={!sel.size} onClick={() => setMasivo({ fecha: hoy(), cuenta: cuentaPara('transferencia'), medio: 'transferencia', referencia: '' })}>
                 {vista === 'cobrar' ? 'Cobrar seleccionados' : 'Pagar seleccionados'}
               </button>
-              <button className="enlace" onClick={() => setSel(new Set())}>Quitar selección</button>
+              {sel.size > 0 && <button className="enlace" onClick={() => setSel(new Set())}>Quitar selección</button>}
             </div>
           )}
           <div className="scroll">

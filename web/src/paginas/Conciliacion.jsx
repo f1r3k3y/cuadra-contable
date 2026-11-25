@@ -8,6 +8,9 @@ import { columnasCartola, leerArchivo, leerCsv, movimientosCartola } from '../im
 const CAMPOS = [['fecha', 'Fecha', true], ['descripcion', 'Descripción', true], ['referencia', 'N° documento', false],
   ['cargo', 'Cargo', false], ['abono', 'Abono', false], ['monto', 'Monto con signo', false], ['saldo', 'Saldo', false]];
 
+// Propone el texto de la regla: la descripción sin números ni fechas (ej. "COMISION MANTENCION 0123" → "COMISION MANTENCION")
+const textoRegla = (d) => (d ?? '').toUpperCase().replace(/[\d/.,:-]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 40);
+
 export default function Conciliacion() {
   const { empresa, permite } = useEmpresa();
   const [bancos, setBancos] = useState([]);
@@ -20,6 +23,8 @@ export default function Conciliacion() {
   const [accion, setAccion] = useState(null);
   const [cuentasContra, setCuentasContra] = useState([]);
   const [msg, setMsg] = useState(null);
+  const [reglas, setReglas] = useState([]);
+  const [regla, setRegla] = useState(null);
   const gestiona = permite('conciliacion.gestionar');
 
   useEffect(() => {
@@ -33,6 +38,7 @@ export default function Conciliacion() {
   const cargar = useCallback(async () => {
     if (!cuenta) return;
     setRes(await rpc('resumen_conciliacion', { p_empresa: empresa.id, p_cuenta: cuenta, p_hasta: hasta }));
+    setReglas(await q(sb.from('reglas_conciliacion').select('*, cuentas!reglas_conciliacion_cuenta_id_fkey(codigo, nombre)').eq('empresa_id', empresa.id).order('texto')));
     if (vista === 'conciliados') {
       setHechos(await q(sb.from('cartola_movimientos').select('*').eq('empresa_id', empresa.id).eq('cuenta_id', cuenta)
         .neq('estado', 'pendiente').lte('fecha', hasta).order('fecha', { ascending: false }).limit(300)));
@@ -62,8 +68,9 @@ export default function Conciliacion() {
   async function importar() {
     try {
       const r = await rpc('importar_cartola', { p_empresa: empresa.id, p_cuenta: cuenta, p_movimientos: previa });
+      const pr = reglas.length ? await rpc('aplicar_reglas_conciliacion', { p_empresa: empresa.id, p_cuenta: cuenta }) : { contabilizados: 0 };
       setCarga(null);
-      setMsg({ ok: true, t: `Cartola cargada: ${r.nuevos} movimientos nuevos${r.repetidos ? `, ${r.repetidos} ya estaban` : ''}. ${r.conciliados} se conciliaron solos por monto y fecha.` });
+      setMsg({ ok: true, t: `Cartola cargada: ${r.nuevos} movimientos nuevos${r.repetidos ? `, ${r.repetidos} ya estaban` : ''}. ${r.conciliados} se conciliaron solos por monto y fecha${pr.contabilizados ? ` y ${pr.contabilizados} se contabilizaron con tus reglas` : ''}.` });
       cargar();
     } catch (err) { setMsg({ ok: false, t: err.message }); }
   }
@@ -72,7 +79,13 @@ export default function Conciliacion() {
     e.preventDefault();
     try {
       if (accion.tipo === 'conciliar') await rpc('conciliar_movimiento', { p_movimiento: accion.mov.id, p_linea: accion.linea });
-      if (accion.tipo === 'contabilizar') await rpc('contabilizar_movimiento', { p_movimiento: accion.mov.id, p_cuenta: accion.cuenta, p_glosa: accion.glosa });
+      if (accion.tipo === 'contabilizar') {
+        await rpc('contabilizar_movimiento', { p_movimiento: accion.mov.id, p_cuenta: accion.cuenta, p_glosa: accion.glosa });
+        if (accion.recordar && accion.texto?.trim().length >= 3) {
+          await rpc('guardar_regla_conciliacion', { p_empresa: empresa.id, p_texto: accion.texto, p_cuenta: accion.cuenta,
+            p_sentido: accion.mov.monto < 0 ? 'cargo' : 'abono', p_cuenta_banco: null, p_glosa: accion.glosa || null });
+        }
+      }
       if (accion.tipo === 'ignorar') await rpc('ignorar_movimiento', { p_movimiento: accion.mov.id, p_nota: accion.nota });
       setAccion(null);
       setMsg({ ok: true, t: { conciliar: 'Movimiento conciliado.', contabilizar: 'Movimiento contabilizado y conciliado.', ignorar: 'Movimiento marcado como no contabilizable.' }[accion.tipo] });
@@ -82,6 +95,22 @@ export default function Conciliacion() {
 
   async function auto() {
     try { const n = await rpc('conciliar_automatico', { p_empresa: empresa.id, p_cuenta: cuenta }); setMsg({ ok: true, t: `${n} movimientos conciliados por monto y fecha.` }); cargar(); }
+    catch (err) { setMsg({ ok: false, t: err.message }); }
+  }
+  async function aplicarReglas() {
+    try { const r = await rpc('aplicar_reglas_conciliacion', { p_empresa: empresa.id, p_cuenta: cuenta }); setMsg({ ok: true, t: `${r.contabilizados} movimientos contabilizados con tus reglas.` }); cargar(); }
+    catch (err) { setMsg({ ok: false, t: err.message }); }
+  }
+  async function guardarRegla(e) {
+    e.preventDefault();
+    try {
+      await rpc('guardar_regla_conciliacion', { p_empresa: empresa.id, p_texto: regla.texto, p_cuenta: regla.cuenta, p_sentido: regla.sentido,
+        p_cuenta_banco: regla.soloEsta ? cuenta : null, p_glosa: regla.glosa || null, p_id: regla.id ?? null });
+      setRegla(null); setMsg({ ok: true, t: 'Regla guardada.' }); cargar();
+    } catch (err) { setRegla({ ...regla, error: err.message }); }
+  }
+  async function borrarRegla(r) {
+    try { await rpc('eliminar_regla_conciliacion', { p_id: r.id }); setMsg({ ok: true, t: 'Regla eliminada.' }); cargar(); }
     catch (err) { setMsg({ ok: false, t: err.message }); }
   }
   async function deshacer(m) {
@@ -162,7 +191,7 @@ export default function Conciliacion() {
                         <td className="nw">{fecha(m.fecha)}</td><td>{m.descripcion}{m.referencia && <small> · {m.referencia}</small>}</td><td className="n">{peso(m.monto)}</td>
                         <td className="nw">{gestiona && <>
                           {candidatas(m).length > 0 && <button className="enlace" onClick={() => setAccion({ tipo: 'conciliar', mov: m, linea: candidatas(m)[0].lineaId })}>Conciliar</button>}{' '}
-                          <button className="enlace" onClick={() => setAccion({ tipo: 'contabilizar', mov: m, cuenta: '', glosa: m.descripcion })}>Contabilizar</button>{' '}
+                          <button className="enlace" onClick={() => setAccion({ tipo: 'contabilizar', mov: m, cuenta: '', glosa: m.descripcion, recordar: false, texto: textoRegla(m.descripcion) })}>Contabilizar</button>{' '}
                           <button className="enlace" onClick={() => setAccion({ tipo: 'ignorar', mov: m, nota: '' })}>Ignorar</button>
                         </>}</td>
                       </tr>
@@ -197,11 +226,48 @@ export default function Conciliacion() {
           )}
           <div className="acciones izquierda">
             {gestiona && res.bancoPendiente.length > 0 && <button onClick={auto}>Conciliar automáticamente</button>}
+            {gestiona && res.bancoPendiente.length > 0 && reglas.length > 0 && <button onClick={aplicarReglas}>Aplicar reglas ({reglas.length})</button>}
             {res.bancoPendiente.length + res.libroPendiente.length > 0 && <button onClick={() => csv(`conciliacion_${hasta}`, [
               ...res.bancoPendiente.map((m) => ({ Partida: 'En banco, no en contabilidad', Fecha: fecha(m.fecha), Detalle: m.descripcion, Monto: m.monto })),
               ...res.libroPendiente.map((l) => ({ Partida: 'En contabilidad, no en banco', Fecha: fecha(l.fecha), Detalle: `N° ${l.numero} ${l.glosa}`, Monto: l.monto }))])}>Descargar partidas (CSV)</button>}
           </div>
+
+          <h2>Reglas de contabilización</h2>
+          <p className="chico">Los movimientos del banco cuya descripción contiene el texto se contabilizan solos en la cuenta indicada al cargar la cartola (comisiones, mantención, intereses, impuestos, etc.).</p>
+          <table className="tabla compacta">
+            <thead><tr><th>Si la descripción contiene</th><th>Movimientos</th><th>Contabilizar en</th><th className="n">Usos</th><th></th></tr></thead>
+            <tbody>
+              {reglas.length === 0 && <tr><td colSpan={5} className="vacio">Aún no hay reglas. Puedes crearlas al contabilizar un movimiento («Recordar para los próximos»).</td></tr>}
+              {reglas.map((r) => (
+                <tr key={r.id}><td><code>{r.texto}</code>{r.cuenta_banco && <small> · solo {bancos.find((b) => b.id === r.cuenta_banco)?.nombre ?? 'una cuenta'}</small>}</td>
+                  <td>{{ cargo: 'Cargos', abono: 'Abonos', ambos: 'Todos' }[r.sentido]}</td><td>{r.cuentas?.codigo} {r.cuentas?.nombre}</td><td className="n">{r.usos}</td>
+                  <td className="nw">{gestiona && <><button className="enlace" onClick={() => setRegla({ id: r.id, texto: r.texto, cuenta: r.cuenta_id, sentido: r.sentido, glosa: r.glosa ?? '', soloEsta: !!r.cuenta_banco })}>Editar</button>{' '}
+                    <button className="enlace" onClick={() => borrarRegla(r)}>Eliminar</button></>}</td></tr>
+              ))}
+            </tbody>
+          </table>
+          {gestiona && <div className="acciones izquierda"><button onClick={() => setRegla({ texto: '', cuenta: '', sentido: 'cargo', glosa: '', soloEsta: false })}>+ Nueva regla</button></div>}
         </>
+      )}
+
+      {regla && (
+        <Dialogo titulo="Regla de contabilización" alCerrar={() => setRegla(null)}>
+          <form onSubmit={guardarRegla}>
+            <h2>{regla.id ? 'Editar regla' : 'Nueva regla'}</h2>
+            <label>Si la descripción contiene<input value={regla.texto} onChange={(e) => setRegla({ ...regla, texto: e.target.value })} minLength={3} maxLength={100} required placeholder="Ej.: COMISION" autoFocus /></label>
+            <label>Aplicar a<select value={regla.sentido} onChange={(e) => setRegla({ ...regla, sentido: e.target.value })}>
+              <option value="cargo">Cargos (salidas de dinero)</option><option value="abono">Abonos (entradas de dinero)</option><option value="ambos">Ambos</option>
+            </select></label>
+            <label>Contabilizar en<select value={regla.cuenta} onChange={(e) => setRegla({ ...regla, cuenta: e.target.value })} required>
+              <option value="">Elegir cuenta…</option>
+              {cuentasContra.filter((c) => !bancos.some((b) => b.id === c.id)).map((c) => <option key={c.id} value={c.id}>{c.codigo} {c.nombre}</option>)}
+            </select></label>
+            <label>Glosa del asiento (opcional)<input value={regla.glosa} onChange={(e) => setRegla({ ...regla, glosa: e.target.value })} maxLength={200} /></label>
+            <label className="en-linea"><input type="checkbox" checked={regla.soloEsta} onChange={(e) => setRegla({ ...regla, soloEsta: e.target.checked })} /> Solo para {bancos.find((b) => b.id === cuenta)?.nombre}</label>
+            {regla.error && <p className="aviso error">{regla.error}</p>}
+            <div className="acciones"><button type="button" onClick={() => setRegla(null)}>Cancelar</button><button className="primario">Guardar regla</button></div>
+          </form>
+        </Dialogo>
       )}
 
       {accion && (
@@ -220,6 +286,8 @@ export default function Conciliacion() {
                 {cuentasContra.filter((c) => c.id !== cuenta).map((c) => <option key={c.id} value={c.id}>{c.codigo} {c.nombre}</option>)}
               </select></label>
               <label>Glosa<input value={accion.glosa} onChange={(e) => setAccion({ ...accion, glosa: e.target.value })} maxLength={300} /></label>
+              <label className="en-linea"><input type="checkbox" checked={accion.recordar} onChange={(e) => setAccion({ ...accion, recordar: e.target.checked })} /> Recordar para los próximos movimientos que contengan</label>
+              {accion.recordar && <label>Texto a buscar en la descripción<input value={accion.texto} onChange={(e) => setAccion({ ...accion, texto: e.target.value })} minLength={3} maxLength={100} required /></label>}
               <p className="chico">Para comisiones e intereses del banco. Si es un cobro o pago de una factura, regístrelo en Tesorería y luego concílielo.</p>
             </>}
             {accion.tipo === 'ignorar' && <label>Motivo<input value={accion.nota} onChange={(e) => setAccion({ ...accion, nota: e.target.value })} minLength={5} required placeholder="Ej.: traspaso entre cuentas propias ya registrado" /></label>}

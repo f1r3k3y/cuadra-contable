@@ -184,6 +184,9 @@ export default function Remuneraciones() {
           </div>
           <div className="acciones izquierda">
             <button onClick={() => csv(`remuneraciones_${periodo}`, lineas.map((l) => ({ RUT: rutFormato(l.rut), Nombre: l.nombre, ...Object.fromEntries(COLS.map(([k, tt]) => [tt, l[k]])), Liquido: l.liquido })))}>Descargar CSV</button>
+            <button title="Montos por trabajador para declarar y pagar en Previred. No es el archivo de carga masiva de Previred." onClick={() => csv(`cotizaciones_previred_${periodo}`, lineas.map((l) => ({
+              RUT: rutFormato(l.rut), Nombre: l.nombre, RentaImponible: l.imponible, CotizacionAFP: l.afp, Salud: l.salud, SeguroCesantiaTrabajador: l.afc_trabajador,
+              AportesEmpleador: l.aporte_empleador, TotalAPagar: Number(l.afp) + Number(l.salud) + Number(l.afc_trabajador) + Number(l.aporte_empleador) })))}>Resumen para Previred (CSV)</button>
             {registra && <button onClick={() => setAnular({ motivo: '' })}>Anular para corregir</button>}
           </div>
         </>

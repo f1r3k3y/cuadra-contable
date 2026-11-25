@@ -93,6 +93,8 @@ export const PERMISOS = {
   'sii.ver': 'Ver conexión con el SII',
   'sii.configurar': 'Configurar conexión con el SII',
   'sii.emitir': 'Emitir documentos electrónicos',
+  'activos.ver': 'Ver activo fijo',
+  'activos.gestionar': 'Registrar, depreciar y dar de baja activos',
 };
 
 export const MESES_LARGOS = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];

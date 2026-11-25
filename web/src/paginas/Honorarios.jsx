@@ -78,7 +78,7 @@ export default function Honorarios() {
         <div className="filtros">
           <SelectorMes valor={mes} alCambiar={setMes} />
           {registra && !f && <button className="primario" onClick={() => setF(vacio())}>+ Registrar boleta</button>}
-          <button onClick={resumenAnual} title="Retenciones por prestador y mes del año: base para la Declaración Jurada 1879">Resumen anual {mes.slice(0, 4)} (DJ 1879)</button>
+          {(registra || permite('f29.ver')) && <button onClick={resumenAnual} title="Retenciones por prestador y mes del año: base para la Declaración Jurada 1879">Resumen anual {mes.slice(0, 4)} (DJ 1879)</button>}
         </div>
       </header>
       <Aviso msg={msg} />

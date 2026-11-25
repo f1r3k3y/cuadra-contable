@@ -236,7 +236,9 @@ a.boton { display: inline-flex; align-items: center; padding: 6px 12px; border: 
 
 /* Selección múltiple (pago masivo) y cierre del ejercicio */
 .barra-seleccion { position: sticky; top: 0; z-index: 2; display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; background: var(--panel); border: 1px solid var(--linea); border-inline-start: 4px solid var(--ladrillo); border-radius: 8px; padding: 8px 14px; margin-bottom: 10px; }
-.barra-seleccion span { font-weight: 600; }
+.barra-seleccion span { font-weight: 600; flex: 1; }
+.tabla td input[type=checkbox], .tabla th input[type=checkbox] { min-height: 0; width: 18px; height: 18px; margin: 0; cursor: pointer; }
+.vencimientos a { color: inherit; }
 .lista-corta { margin: 0 0 12px; padding-inline-start: 18px; font-size: 14px; color: var(--suave); }
 .vencimientos { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .vencimientos li { display: flex; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--linea); padding: 6px 0; }
