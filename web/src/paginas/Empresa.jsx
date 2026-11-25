@@ -4,7 +4,7 @@ import { Aviso, CampoMonto, Dialogo } from '../componentes';
 import { MisAutenticadores } from '../auth';
 import { useEmpresa } from '../App';
 import { q, rpc, sb } from '../supabase';
-import { MESES, PERMISOS, ROLES, ROL_DESC, rutFormato } from '../util';
+import { MESES, PERMISOS, ROLES, ROL_DESC, peso, rutFormato } from '../util';
 
 export default function Empresa() {
   const { empresa, permite, rol, usuario, recargarEmpresas } = useEmpresa();
@@ -152,6 +152,7 @@ export default function Empresa() {
               </tr>
             ))}
           </tbody></table>
+          {cierra && <CierreEjercicio empresa={empresa} />}
         </div>
       </div>
 
@@ -186,5 +187,59 @@ export default function Empresa() {
 
       {audita && <p className="nota">El registro completo de cambios (quién, qué, cuándo, desde qué IP) está en <Link to="/auditoria">Auditoría</Link>.</p>}
     </section>
+  );
+}
+
+// Asiento de cierre anual: deja en cero las cuentas de resultado y lleva la utilidad o pérdida al patrimonio.
+function CierreEjercicio({ empresa }) {
+  const actual = new Date().getFullYear();
+  const [anio, setAnio] = useState(new Date().getMonth() === 11 ? actual : actual - 1);
+  const [est, setEst] = useState(null);
+  const [confirmar, setConfirmar] = useState(false);
+  const [msg, setMsg] = useState(null);
+  const cargar = useCallback(() => {
+    setEst(null);
+    rpc('estado_ejercicio', { p_empresa: empresa.id, p_anio: anio }).then(setEst).catch((e) => setMsg({ ok: false, t: e.message }));
+  }, [empresa.id, anio]);
+  useEffect(() => { cargar(); }, [cargar]);
+  const disponible = anio < actual || new Date().getMonth() === 11;
+
+  async function cerrar(e) {
+    e.preventDefault();
+    setConfirmar(false);
+    try {
+      const a = await rpc('cerrar_ejercicio', { p_empresa: empresa.id, p_anio: anio });
+      setMsg({ ok: true, t: `Ejercicio ${anio} cerrado con el asiento N° ${a.numero}.` });
+      cargar();
+    } catch (err) { setMsg({ ok: false, t: err.message }); }
+  }
+
+  return (
+    <>
+      <h2>Cierre del ejercicio</h2>
+      <p className="chico">Al terminar el año, las cuentas de ingresos y gastos quedan en cero y la utilidad o pérdida pasa a «Resultado del ejercicio» (3.1.03). El resultado del año anterior se traspasa a «Resultados acumulados» (3.1.02). Los informes del año siguen mostrando el resultado.</p>
+      <label className="en-linea">Año<select value={anio} onChange={(e) => setAnio(Number(e.target.value))}>
+        {[actual, actual - 1, actual - 2, actual - 3].map((a) => <option key={a} value={a}>{a}</option>)}</select></label>
+      <Aviso msg={msg} />
+      {est && (est.cerrado
+        ? <p><span className="etiqueta contabilizado">cerrado</span> con el asiento N° {est.asiento.numero}. Para rehacerlo, anule ese asiento en Asientos.</p>
+        : <>
+          <p>Resultado {anio}: <b>{peso(est.resultado)}</b> {Number(est.resultado) >= 0 ? '(utilidad)' : '(pérdida)'}
+            {est.borradores > 0 && <><br /><span className="error-texto">{est.borradores} borradores pendientes en {anio}: apruébalos o elimínalos antes de cerrar.</span></>}
+            {est.mesesAbiertos > 0 && <><br /><small>{est.mesesAbiertos} meses de {anio} siguen abiertos; conviene cerrarlos después del cierre anual.</small></>}</p>
+          <button disabled={!disponible || est.borradores > 0} onClick={() => setConfirmar(true)}>Generar asiento de cierre {anio}</button>
+          {!disponible && <p className="chico">El cierre de {anio} se habilita en diciembre.</p>}
+        </>)}
+      {confirmar && (
+        <Dialogo titulo={`Cerrar el ejercicio ${anio}`} alCerrar={() => setConfirmar(false)}>
+          <form onSubmit={cerrar}>
+            <h2>Cerrar el ejercicio {anio}</h2>
+            <p>Se crea y contabiliza un asiento al 31-12-{anio} que deja las cuentas de resultado en cero y lleva {peso(Math.abs(Number(est.resultado)))} de {Number(est.resultado) >= 0 ? 'utilidad' : 'pérdida'} al patrimonio.</p>
+            <p className="chico">Se puede deshacer anulando el asiento mientras diciembre esté abierto.</p>
+            <div className="acciones"><button type="button" onClick={() => setConfirmar(false)}>Cancelar</button><button className="primario">Generar asiento</button></div>
+          </form>
+        </Dialogo>
+      )}
+    </>
   );
 }

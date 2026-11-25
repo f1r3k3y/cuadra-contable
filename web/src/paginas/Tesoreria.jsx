@@ -18,6 +18,8 @@ export default function Tesoreria() {
   const [dialogo, setDialogo] = useState(null);
   const [anular, setAnular] = useState(null);
   const [msg, setMsg] = useState(null);
+  const [sel, setSel] = useState(() => new Set());
+  const [masivo, setMasivo] = useState(null);
   const registra = permite('tesoreria.registrar');
   const anula = permite('tesoreria.anular');
 
@@ -32,6 +34,23 @@ export default function Tesoreria() {
     }
   }, [empresa.id, vista]);
   useEffect(() => { cargar().catch((e) => setMsg({ ok: false, t: e.message })); }, [cargar]);
+  useEffect(() => { setSel(new Set()); }, [vista]);
+
+  const seleccionables = docs.filter((d) => d.asiento_estado === 'contabilizado');
+  const elegidos = docs.filter((d) => sel.has(d.id));
+  const totalElegido = elegidos.reduce((s, d) => s + Number(d.saldo), 0);
+  const alternar = (id) => setSel((x) => { const n = new Set(x); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+
+  async function registrarMasivo(e) {
+    e.preventDefault();
+    try {
+      const r = await rpc('registrar_pagos', { p_documentos: [...sel], p_fecha: masivo.fecha, p_cuenta: masivo.cuenta, p_medio: masivo.medio, p_referencia: masivo.referencia || null });
+      setMsg({ ok: true, t: `${r.documentos} ${vista === 'cobrar' ? 'cobros' : 'pagos'} registrados por ${peso(r.total)}, cada uno con su asiento.` });
+      setMasivo(null);
+      setSel(new Set());
+      cargar();
+    } catch (err) { setMasivo({ ...masivo, error: err.message }); }
+  }
 
   async function registrar(e) {
     e.preventDefault();
@@ -110,13 +129,25 @@ export default function Tesoreria() {
       {vista !== 'movimientos' ? (
         <>
           <h2>{vista === 'cobrar' ? 'Documentos por cobrar' : 'Documentos por pagar'}</h2>
+          {registra && sel.size > 0 && (
+            <div className="barra-seleccion" role="status">
+              <span>{sel.size} seleccionados · saldo {peso(totalElegido)}</span>
+              <button className="primario" onClick={() => setMasivo({ fecha: hoy(), cuenta: cuentaPara('transferencia'), medio: 'transferencia', referencia: '' })}>
+                {vista === 'cobrar' ? 'Cobrar seleccionados' : 'Pagar seleccionados'}
+              </button>
+              <button className="enlace" onClick={() => setSel(new Set())}>Quitar selección</button>
+            </div>
+          )}
           <div className="scroll">
             <table className="tabla">
-              <thead><tr><th>Fecha</th><th>Vence</th><th className="n">Días vencido</th><th>Documento</th><th>{vista === 'cobrar' ? 'Cliente' : 'Proveedor'}</th><th className="n">Total</th><th className="n">Saldo</th><th></th></tr></thead>
+              <thead><tr>{registra && <th><input type="checkbox" aria-label="Seleccionar todos" checked={seleccionables.length > 0 && seleccionables.every((d) => sel.has(d.id))}
+                onChange={(e) => setSel(e.target.checked ? new Set(seleccionables.map((d) => d.id)) : new Set())} /></th>}<th>Fecha</th><th>Vence</th><th className="n">Días vencido</th><th>Documento</th><th>{vista === 'cobrar' ? 'Cliente' : 'Proveedor'}</th><th className="n">Total</th><th className="n">Saldo</th><th></th></tr></thead>
               <tbody>
-                {docs.length === 0 && <tr><td colSpan={8} className="vacio">No hay saldos pendientes.</td></tr>}
+                {docs.length === 0 && <tr><td colSpan={registra ? 9 : 8} className="vacio">No hay saldos pendientes.</td></tr>}
                 {docs.map((d) => (
                   <tr key={d.id}>
+                    {registra && <td><input type="checkbox" aria-label={`Seleccionar ${docCorto(d.tipo, d.folio)}`} disabled={d.asiento_estado !== 'contabilizado'}
+                      checked={sel.has(d.id)} onChange={() => alternar(d.id)} /></td>}
                     <td className="nw">{fecha(d.fecha)}</td><td className="nw">{fecha(d.vence)}</td>
                     <td className={'n' + (dias(d.vence) > 0 ? ' error-texto' : '')}>{dias(d.vence) > 0 ? dias(d.vence) : '—'}</td>
                     <td title={TIPOS_DOC[d.tipo]}>{docCorto(d.tipo, d.folio)}{d.asiento_estado !== 'contabilizado' && <small> · por aprobar</small>}</td>
@@ -185,6 +216,27 @@ export default function Tesoreria() {
             <label>Referencia (N° de transferencia o cheque)<input value={dialogo.referencia} onChange={(e) => setDialogo({ ...dialogo, referencia: e.target.value })} maxLength={100} /></label>
             {dialogo.error && <p className="aviso error">{dialogo.error}</p>}
             <div className="acciones"><button type="button" onClick={() => setDialogo(null)}>Cancelar</button><button className="primario">Registrar</button></div>
+          </form>
+        </Dialogo>
+      )}
+
+      {masivo && (
+        <Dialogo titulo={vista === 'cobrar' ? 'Cobrar seleccionados' : 'Pagar seleccionados'} alCerrar={() => setMasivo(null)}>
+          <form onSubmit={registrarMasivo}>
+            <h2>{vista === 'cobrar' ? 'Cobrar' : 'Pagar'} {elegidos.length} documentos</h2>
+            <p className="chico">Se registra el saldo completo de cada uno ({peso(totalElegido)} en total), con un asiento por documento.</p>
+            <ul className="lista-corta">{elegidos.slice(0, 8).map((d) => <li key={d.id}>{docCorto(d.tipo, d.folio)} · {d.razon_social} · {peso(d.saldo)}</li>)}
+              {elegidos.length > 8 && <li>y {elegidos.length - 8} más…</li>}</ul>
+            <label>Fecha<input type="date" min={elegidos.reduce((m, d) => (d.fecha > m ? d.fecha : m), '')} max={hoy()} value={masivo.fecha} onChange={(e) => setMasivo({ ...masivo, fecha: e.target.value })} required /></label>
+            <label>Cuenta de caja o banco<select value={masivo.cuenta} onChange={(e) => setMasivo({ ...masivo, cuenta: e.target.value })} required>
+              {res.cuentas.map((c) => <option key={c.id} value={c.id}>{c.codigo} {c.nombre}</option>)}
+            </select></label>
+            <label>Medio<select value={masivo.medio} onChange={(e) => setMasivo({ ...masivo, medio: e.target.value, cuenta: cuentaPara(e.target.value) })}>
+              {Object.entries(MEDIOS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </select></label>
+            <label>Referencia (opcional, se aplica a todos)<input value={masivo.referencia} onChange={(e) => setMasivo({ ...masivo, referencia: e.target.value })} maxLength={100} /></label>
+            {masivo.error && <p className="aviso error">{masivo.error}</p>}
+            <div className="acciones"><button type="button" onClick={() => setMasivo(null)}>Cancelar</button><button className="primario">Registrar {elegidos.length}</button></div>
           </form>
         </Dialogo>
       )}

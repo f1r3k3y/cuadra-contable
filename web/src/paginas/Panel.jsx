@@ -39,7 +39,7 @@ export default function Panel() {
   const caja = t ? t.cuentas.reduce((x, c) => x + Number(c.saldo), 0) : k.caja;
   const pend = [];
   if (permite('asientos.contabilizar') && m.contabilidad.borradores > 0) pend.push(['/asientos', m.contabilidad.borradores, 'asientos y documentos por aprobar']);
-  if (permite('asientos.crear') && !permite('asientos.contabilizar')) pend.push(['/asientos', m.contabilidad.borradores, 'registros esperando aprobación del contador']);
+  if (permite('asientos.crear') && !permite('asientos.contabilizar') && m.contabilidad.borradores > 0) pend.push(['/asientos', m.contabilidad.borradores, 'registros esperando aprobación del contador']);
   if (permite('documentos.registrar')) pend.push(['/documentos', '+', 'registrar compras y ventas']);
   if (t && permite('tesoreria.ver')) {
     pend.push(['/tesoreria', peso(t.porCobrar.total), `por cobrar (${t.porCobrar.documentos} documentos)`]);
@@ -53,11 +53,14 @@ export default function Panel() {
   if (permite('f29.ver')) pend.push(['/f29', 'F29', 'revisar la propuesta del mes']);
   if (permite('auditoria.ver')) pend.push(['/auditoria', '✓', 'revisar cambios y verificar la auditoría']);
 
+  const venc = proximosVencimientos(permite);
+
   if (!finanzas) {
     return (
       <section className="hoja">
         <header className="cabecera"><div><h1>Caja y bancos {peso(caja)}</h1><p className="chico">{empresa.razon_social} · vista de {ROLES[rol]}</p></div></header>
         <div className="pendientes">{pend.map(([a, v, txt], i) => <Link key={i} to={a}><b>{v}</b><span>{txt}</span></Link>)}</div>
+        <Vencimientos lista={venc} />
         {t && <>
           <h2>Saldos por cuenta</h2>
           <table className="tabla"><tbody>{t.cuentas.map((c) => <tr key={c.id}><td>{c.codigo} {c.nombre}</td><td className="n">{peso(c.saldo)}</td></tr>)}</tbody></table>
@@ -85,6 +88,7 @@ export default function Panel() {
       </header>
 
       {pend.length > 0 && <div className="pendientes">{pend.map(([a, v, txt], i) => <Link key={i} to={a}><b>{v}</b><span>{txt}</span></Link>)}</div>}
+      <Vencimientos lista={venc} />
 
       <div className="kpis">
         <Kpi t="Ventas netas" v={peso(k.ventas)} />
@@ -177,5 +181,37 @@ function Ranking({ t, filas }) {
         </tbody></table>
       )}
     </div>
+  );
+}
+
+// Próximas obligaciones tributarias y previsionales (fechas generales; si caen en día inhábil se corren al hábil siguiente)
+const MES_L = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+function proximosVencimientos(permite, hoy = new Date()) {
+  const d = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
+  const proximo = (dia) => { const f = new Date(d.getFullYear(), d.getMonth(), dia); return f < d ? new Date(d.getFullYear(), d.getMonth() + 1, dia) : f; };
+  const mesAnterior = (f) => MES_L[(f.getMonth() + 11) % 12];
+  const xs = [];
+  if (permite('f29.ver')) { const f = proximo(20); xs.push({ f, t: `F29 de ${mesAnterior(f)} (IVA, PPM y retenciones)`, a: '/f29' }); }
+  if (permite('remuneraciones.ver')) { const f = proximo(13); xs.push({ f, t: `Cotizaciones de ${mesAnterior(f)} en Previred`, a: '/remuneraciones' }); }
+  const m = d.getMonth();
+  if (m <= 2 && permite('documentos.ver')) xs.push({ f: new Date(d.getFullYear(), 2, 31), t: 'Declaraciones juradas de marzo (DJ 1879 honorarios, DJ 1887 sueldos)', a: '/honorarios', aprox: true });
+  if (m <= 3 && permite('f29.ver')) xs.push({ f: new Date(d.getFullYear(), 3, 30), t: `Renta anual (F22) del año ${d.getFullYear() - 1}`, a: '/reportes', aprox: true });
+  if (m === 11 && permite('periodos.cerrar')) xs.push({ f: new Date(d.getFullYear(), 11, 31), t: `Cierre del ejercicio ${d.getFullYear()}`, a: '/empresa' });
+  return xs.sort((a, b) => a.f - b.f).map((x) => ({ ...x, dias: Math.round((x.f - d) / 86400000) }));
+}
+
+function Vencimientos({ lista }) {
+  if (!lista.length) return null;
+  return (
+    <>
+      <h2>Próximos vencimientos</h2>
+      <ul className="vencimientos">{lista.map((v) => (
+        <li key={v.t} className={v.dias <= 5 ? 'pronto' : ''}>
+          <Link to={v.a}>{v.t}</Link>
+          <b className="nw">{v.aprox ? `hasta fines de ${MES_L[v.f.getMonth()]}` : `${v.f.getDate()} de ${MES_L[v.f.getMonth()]}`}{!v.aprox && ` · ${v.dias === 0 ? 'hoy' : v.dias === 1 ? 'mañana' : `en ${v.dias} días`}`}</b>
+        </li>))}
+      </ul>
+      <p className="chico">Fechas generales: si caen en día inhábil se corren al hábil siguiente. Las fechas exactas de declaraciones juradas y renta las publica el SII cada año.</p>
+    </>
   );
 }

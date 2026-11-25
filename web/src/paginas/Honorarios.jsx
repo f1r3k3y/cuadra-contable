@@ -16,6 +16,17 @@ export default function Honorarios() {
   const [msg, setMsg] = useState(null);
   const registra = permite('honorarios.registrar');
 
+  async function resumenAnual() {
+    try {
+      const anio = Number(mes.slice(0, 4));
+      const r = await rpc('resumen_anual_retenciones', { p_empresa: empresa.id, p_anio: anio });
+      if (!r.honorarios?.length) return setMsg({ ok: false, t: `No hay boletas de honorarios en ${anio}.` });
+      const MES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+      csv(`dj1879_base_${anio}`, r.honorarios.map((h) => ({ RUT: rutFormato(h.rut), Nombre: h.nombre, Boletas: h.boletas, MontoBruto: h.bruto, Retencion: h.retencion,
+        ...Object.fromEntries(MES.map((m, i) => ['Ret' + m, h.meses[i]])) })));
+    } catch (e) { setMsg({ ok: false, t: e.message }); }
+  }
+
   const cargar = useCallback(async () => {
     const [a, m] = mes.split('-');
     const fin = new Date(Number(a), Number(m), 0).getDate();
@@ -67,6 +78,7 @@ export default function Honorarios() {
         <div className="filtros">
           <SelectorMes valor={mes} alCambiar={setMes} />
           {registra && !f && <button className="primario" onClick={() => setF(vacio())}>+ Registrar boleta</button>}
+          <button onClick={resumenAnual} title="Retenciones por prestador y mes del año: base para la Declaración Jurada 1879">Resumen anual {mes.slice(0, 4)} (DJ 1879)</button>
         </div>
       </header>
       <Aviso msg={msg} />

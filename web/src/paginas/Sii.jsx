@@ -260,7 +260,7 @@ function Conexion() {
         </>
       )}
 
-      {e.conector !== 'ninguno' && <div className="acciones izquierda"><button onClick={probar}>Probar conexión</button></div>}
+      {e.conector !== 'ninguno' && permite('sii.emitir') && <div className="acciones izquierda"><button onClick={probar}>Probar conexión</button></div>}
       <p className="chico">Pasos con el SII: inscribirse como facturador electrónico, obtener el certificado digital del representante y, en conexión directa, completar la certificación en el ambiente de pruebas (maullin.sii.cl) antes de pasar a producción. Con un proveedor, ese proceso lo guía el proveedor.</p>
     </>
   );

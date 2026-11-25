@@ -89,6 +89,18 @@ export default function Remuneraciones() {
     } catch (err) { setForm({ ...form, error: err.message }); }
   }
 
+  async function resumenAnual() {
+    try {
+      const anio = Number(mes.slice(0, 4));
+      const r = await rpc('resumen_anual_retenciones', { p_empresa: empresa.id, p_anio: anio });
+      if (!r.remuneraciones?.length) return setMsg({ ok: false, t: `No hay remuneraciones registradas en ${anio}.` });
+      const filas = [];
+      for (const w of r.remuneraciones) for (const d of w.detalle) filas.push({ RUT: rutFormato(w.rut), Nombre: w.nombre, Periodo: `${d.periodo.slice(4)}-${d.periodo.slice(0, 4)}`, RentaTributable: d.renta, ImpuestoUnico: d.impuesto });
+      for (const w of r.remuneraciones) filas.push({ RUT: rutFormato(w.rut), Nombre: w.nombre, Periodo: `TOTAL ${anio}`, RentaTributable: w.rentaTributable, ImpuestoUnico: w.impuesto });
+      csv(`dj1887_base_${anio}`, filas);
+    } catch (e) { setMsg({ ok: false, t: e.message }); }
+  }
+
   async function confirmarAnulacion(e) {
     e.preventDefault();
     try { await rpc('anular_remuneraciones', { p_id: rem.id, p_motivo: anular.motivo }); setAnular(null); setMsg({ ok: true, t: 'Remuneraciones anuladas; puede registrarlas de nuevo.' }); cargar(); }
@@ -106,7 +118,8 @@ export default function Remuneraciones() {
           <h1>Remuneraciones · {MESES_LARGOS[Number(m) - 1]} {a}</h1>
           <p className="chico">Libro mensual y centralización contable. El impuesto único va al F29 (código 48); las cotizaciones quedan en Leyes sociales por pagar hasta pagarlas en Previred.</p>
         </div>
-        <div className="filtros"><SelectorMes valor={mes} alCambiar={setMes} /></div>
+        <div className="filtros"><SelectorMes valor={mes} alCambiar={setMes} />
+          <button onClick={resumenAnual} title="Renta tributable e impuesto único por trabajador: base para la Declaración Jurada 1887">Resumen anual {mes.slice(0, 4)} (DJ 1887)</button></div>
       </header>
       <Aviso msg={msg} />
 
