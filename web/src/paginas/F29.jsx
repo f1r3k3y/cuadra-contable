@@ -14,6 +14,8 @@ const LINEAS = [
   ['563', 'Base imponible PPM (ingresos netos del mes)', true],
   ['115', 'Tasa PPM (%)', false],
   ['62', 'PPM neto determinado', true],
+  ['48', 'Impuesto único de segunda categoría (remuneraciones)', true],
+  ['151', 'Retención de honorarios', true],
   ['91', 'Total a pagar dentro del plazo', true],
 ];
 

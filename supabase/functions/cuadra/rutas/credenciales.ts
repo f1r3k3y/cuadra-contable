@@ -85,5 +85,16 @@ export default servir(['admin'], async ({ body, admin, empresa, userId }) => {
     return c;
   }
 
+  if (accion === 'api_key') {
+    const clave = requerido(body.apiKey as string, 'apiKey').trim();
+    if (clave.length < 16 || clave.length > 512 || /\s/.test(clave)) throw new HttpError(400, 'La clave de API no tiene un formato válido');
+    if (empresa.sii_conector !== 'proveedor') throw new HttpError(412, 'Primero elija conectarse vía proveedor');
+    // Se reemplaza la clave anterior: solo existe una vigente por empresa
+    await admin.from('secretos').delete().eq('empresa_id', empresa.id).eq('tipo', 'api_key');
+    const { error } = await admin.from('secretos').insert({ empresa_id: empresa.id, tipo: 'api_key', cifrado: await cifrar(clave, empresa.id) });
+    if (error) throw error;
+    return { ok: true, termina: clave.slice(-4) };
+  }
+
   throw new HttpError(400, 'Acción desconocida');
 });

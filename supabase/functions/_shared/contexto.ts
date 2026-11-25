@@ -55,3 +55,10 @@ export function caratula(empresa: Record<string, any>, rutEnvia: string, rutRece
     numeroResolucion: empresa.sii_ambiente === 'certificacion' ? 0 : empresa.sii_resolucion_numero,
   };
 }
+
+export async function cargarApiKey(admin: SupabaseClient, empresaId: string): Promise<string> {
+  const { data: s } = await admin.from('secretos').select('cifrado').eq('empresa_id', empresaId).eq('tipo', 'api_key')
+    .order('creado_en', { ascending: false }).limit(1).maybeSingle();
+  if (!s) throw new HttpError(412, 'Falta la clave de API del proveedor de facturación');
+  return await descifrar(s.cifrado, empresaId);
+}

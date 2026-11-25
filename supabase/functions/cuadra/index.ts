@@ -5,6 +5,7 @@ import dteEmitir from './rutas/dte-emitir.ts';
 import dteEstado from './rutas/dte-estado.ts';
 import dteRecibir from './rutas/dte-recibir.ts';
 import rcvSync from './rutas/rcv-sync.ts';
+import siiProbar from './rutas/sii-probar.ts';
 import { cors } from '../_shared/http.ts';
 
 const rutas: Record<string, (req: Request) => Promise<Response>> = {
@@ -13,6 +14,7 @@ const rutas: Record<string, (req: Request) => Promise<Response>> = {
   'dte-estado': dteEstado,
   'dte-recibir': dteRecibir,
   'rcv-sync': rcvSync,
+  'sii-probar': siiProbar,
 };
 
 Deno.serve((req) => {

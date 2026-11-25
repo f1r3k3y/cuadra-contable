@@ -213,3 +213,23 @@ label[data-ayuda] :is(input, select) { cursor: auto; }
 .enlace-invitacion { border: 1px solid var(--linea); border-radius: 8px; padding: 12px; margin: 10px 0; display: grid; gap: 8px; }
 .enlace-invitacion input { width: 100%; font-family: ui-monospace, monospace; font-size: 12px; }
 a.boton { display: inline-flex; align-items: center; padding: 6px 12px; border: 1px solid var(--linea); border-radius: 6px; text-decoration: none; color: inherit; }
+
+/* Remuneraciones, conciliación y SII */
+.acciones.izquierda { justify-content: flex-start; }
+.vacio-grande { padding: 24px; border: 1px dashed var(--linea); border-radius: 10px; margin: 12px 0; }
+.tabla-edicion td { padding: 4px; }
+.tabla-edicion input { min-width: 0; width: 100%; padding: 6px 8px; }
+.tabla-edicion .campo-monto { min-width: 108px; }
+.tabla-edicion td:nth-child(2) input { min-width: 150px; }
+.lista-chequeo { list-style: none; padding: 0; margin: 8px 0 16px; display: grid; gap: 6px; }
+.lista-chequeo li { display: flex; gap: 10px; align-items: baseline; }
+.lista-chequeo li::before { content: '✗'; color: var(--ladrillo); font-weight: 700; width: 1em; }
+.lista-chequeo li.ok::before { content: '✓'; color: var(--verde); }
+.comparacion { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin: 12px 0; }
+.comparacion > div { border: 1px solid var(--linea); border-radius: 10px; padding: 12px; display: grid; gap: 4px; }
+.comparacion b { font-size: 20px; }
+.comparacion .dif { border-color: var(--ladrillo); }
+.mapeo { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.boton-archivo { display: inline-flex; align-items: center; min-height: 40px; padding: 0 14px; border: 1px solid var(--linea); border-radius: 8px; cursor: pointer; background: var(--panel); font-weight: 600; }
+.boton-archivo:hover { border-color: var(--tinta); }
+.boton-archivo:focus-within { outline: 2px solid var(--ladrillo); outline-offset: 2px; }

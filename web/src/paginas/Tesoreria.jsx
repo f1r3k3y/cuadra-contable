@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useEmpresa } from '../App';
 import { q, rpc, sb } from '../supabase';
-import { TIPOS_DOC, csv, fecha, hoy, peso, rutFormato } from '../util';
+import { TIPOS_DOC, csv, docCorto, fecha, hoy, MESES_LARGOS, peso, rutFormato } from '../util';
 import { Aviso, CampoMonto, Dialogo } from '../componentes';
 
 const MEDIOS = { transferencia: 'Transferencia', cheque: 'Cheque', efectivo: 'Efectivo', tarjeta: 'Tarjeta', deposito: 'Depósito', otro: 'Otro' };
@@ -13,6 +13,8 @@ export default function Tesoreria() {
   const [res, setRes] = useState(null);
   const [docs, setDocs] = useState([]);
   const [movs, setMovs] = useState([]);
+  const [sueldos, setSueldos] = useState([]);
+  const [pagoSueldos, setPagoSueldos] = useState(null);
   const [dialogo, setDialogo] = useState(null);
   const [anular, setAnular] = useState(null);
   const [msg, setMsg] = useState(null);
@@ -25,7 +27,8 @@ export default function Tesoreria() {
       setMovs(await q(sb.from('pagos').select('*, documentos(tipo, folio, razon_social), cuentas(codigo, nombre)').eq('empresa_id', empresa.id).order('fecha', { ascending: false }).limit(200)));
     } else {
       setDocs(await q(sb.from('documentos_saldo').select('*').eq('empresa_id', empresa.id)
-        .eq('operacion', vista === 'cobrar' ? 'venta' : 'compra').eq('estado', 'vigente').neq('tipo', 61).gt('saldo', 0).order('vence')));
+        .in('operacion', vista === 'cobrar' ? ['venta'] : ['compra', 'honorario']).eq('estado', 'vigente').neq('tipo', 61).gt('saldo', 0).order('vence')));
+      setSueldos(vista === 'pagar' ? await rpc('remuneraciones_por_pagar', { p_empresa: empresa.id }) : []);
     }
   }, [empresa.id, vista]);
   useEffect(() => { cargar().catch((e) => setMsg({ ok: false, t: e.message })); }, [cargar]);
@@ -38,6 +41,16 @@ export default function Tesoreria() {
       setDialogo(null);
       cargar();
     } catch (err) { setDialogo({ ...dialogo, error: err.message }); }
+  }
+
+  async function pagarSueldos(e) {
+    e.preventDefault();
+    try {
+      await rpc('pagar_remuneraciones', { p_id: pagoSueldos.r.id, p_fecha: pagoSueldos.fecha, p_cuenta: pagoSueldos.cuenta });
+      setMsg({ ok: true, t: 'Pago de sueldos registrado y contabilizado.' });
+      setPagoSueldos(null);
+      cargar();
+    } catch (err) { setPagoSueldos({ ...pagoSueldos, error: err.message }); }
   }
 
   async function confirmarAnulacion(e) {
@@ -106,9 +119,9 @@ export default function Tesoreria() {
                   <tr key={d.id}>
                     <td className="nw">{fecha(d.fecha)}</td><td className="nw">{fecha(d.vence)}</td>
                     <td className={'n' + (dias(d.vence) > 0 ? ' error-texto' : '')}>{dias(d.vence) > 0 ? dias(d.vence) : '—'}</td>
-                    <td title={TIPOS_DOC[d.tipo]}>{d.tipo} N° {d.folio}{d.asiento_estado !== 'contabilizado' && <small> · por aprobar</small>}</td>
+                    <td title={TIPOS_DOC[d.tipo]}>{docCorto(d.tipo, d.folio)}{d.asiento_estado !== 'contabilizado' && <small> · por aprobar</small>}</td>
                     <td>{d.razon_social}<small> · {rutFormato(d.rut)}</small></td>
-                    <td className="n">{peso(d.total)}</td><td className="n" title={Number(d.notas_credito) > 0 ? `Rebajado por notas de crédito: ${peso(d.notas_credito)}` : undefined}>{peso(d.saldo)}</td>
+                    <td className="n" title={Number(d.retencion) > 0 ? `Bruto ${peso(d.total)}, retención ${peso(d.retencion)}` : undefined}>{peso(d.total - (d.retencion ?? 0))}</td><td className="n" title={Number(d.notas_credito) > 0 ? `Rebajado por notas de crédito: ${peso(d.notas_credito)}` : undefined}>{peso(d.saldo)}</td>
                     <td>{registra && d.asiento_estado === 'contabilizado' && (
                       <button className="enlace" onClick={() => setDialogo({ doc: d, fecha: hoy(), monto: String(Math.round(Number(d.saldo))), cuenta: cuentaPara('transferencia'), medio: 'transferencia', referencia: '' })}>
                         {vista === 'cobrar' ? 'Registrar cobro' : 'Registrar pago'}
@@ -118,6 +131,18 @@ export default function Tesoreria() {
               </tbody>
             </table>
           </div>
+          {vista === 'pagar' && sueldos.length > 0 && (
+            <>
+              <h2>Sueldos por pagar</h2>
+              <table className="tabla">
+                <thead><tr><th>Mes</th><th className="n">Trabajadores</th><th className="n">Líquido total</th><th></th></tr></thead>
+                <tbody>{sueldos.map((r) => (
+                  <tr key={r.id}><td>{MESES_LARGOS[Number(r.periodo.slice(4)) - 1]} {r.periodo.slice(0, 4)}</td><td className="n">{r.trabajadores}</td><td className="n">{peso(r.liquido)}</td>
+                    <td>{registra && <button className="enlace" onClick={() => setPagoSueldos({ r, fecha: hoy(), cuenta: cuentaPara('transferencia') })}>Registrar pago</button>}</td></tr>
+                ))}</tbody>
+              </table>
+            </>
+          )}
         </>
       ) : (
         <>
@@ -130,7 +155,7 @@ export default function Tesoreria() {
                 {movs.map((m) => (
                   <tr key={m.id} className={m.estado === 'anulado' ? 'anulado' : ''}>
                     <td className="nw">{fecha(m.fecha)}</td><td>{m.tipo === 'cobro' ? 'Cobro' : 'Pago'}</td>
-                    <td>{m.documentos.tipo} N° {m.documentos.folio} · {m.documentos.razon_social}</td>
+                    <td>{docCorto(m.documentos.tipo, m.documentos.folio)} · {m.documentos.razon_social}</td>
                     <td>{m.cuentas.nombre}</td><td>{MEDIOS[m.medio]}{m.referencia && <small> · {m.referencia}</small>}</td>
                     <td className="n">{peso(m.monto)}</td>
                     <td>{m.estado === 'anulado' ? <span className="etiqueta anulado" title={m.motivo_anulacion}>Anulado</span>
@@ -160,6 +185,21 @@ export default function Tesoreria() {
             <label>Referencia (N° de transferencia o cheque)<input value={dialogo.referencia} onChange={(e) => setDialogo({ ...dialogo, referencia: e.target.value })} maxLength={100} /></label>
             {dialogo.error && <p className="aviso error">{dialogo.error}</p>}
             <div className="acciones"><button type="button" onClick={() => setDialogo(null)}>Cancelar</button><button className="primario">Registrar</button></div>
+          </form>
+        </Dialogo>
+      )}
+
+      {pagoSueldos && (
+        <Dialogo titulo="Pagar sueldos" alCerrar={() => setPagoSueldos(null)}>
+          <form onSubmit={pagarSueldos}>
+            <h2>Pagar sueldos de {MESES_LARGOS[Number(pagoSueldos.r.periodo.slice(4)) - 1]}</h2>
+            <p className="chico">{pagoSueldos.r.trabajadores} trabajadores · líquido total {peso(pagoSueldos.r.liquido)}</p>
+            <label>Fecha<input type="date" min={pagoSueldos.r.fecha} max={hoy()} value={pagoSueldos.fecha} onChange={(e) => setPagoSueldos({ ...pagoSueldos, fecha: e.target.value })} required /></label>
+            <label>Cuenta de caja o banco<select value={pagoSueldos.cuenta} onChange={(e) => setPagoSueldos({ ...pagoSueldos, cuenta: e.target.value })} required>
+              {res.cuentas.map((c) => <option key={c.id} value={c.id}>{c.codigo} {c.nombre}</option>)}
+            </select></label>
+            {pagoSueldos.error && <p className="aviso error">{pagoSueldos.error}</p>}
+            <div className="acciones"><button type="button" onClick={() => setPagoSueldos(null)}>Cancelar</button><button className="primario">Registrar pago</button></div>
           </form>
         </Dialogo>
       )}

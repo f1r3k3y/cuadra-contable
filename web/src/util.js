@@ -32,7 +32,12 @@ export const TIPOS_DOC = {
   46: 'Factura de compra',
   56: 'Nota de débito',
   61: 'Nota de crédito',
+  900: 'Boleta de honorarios electrónica',
+  901: 'Boleta de prestación de servicios de terceros',
 };
+
+// Etiqueta corta del documento (las boletas de honorarios no tienen código SII de DTE)
+export const docCorto = (tipo, folio) => (tipo === 900 ? 'BHE' : tipo === 901 ? 'BTE' : tipo) + ' N° ' + folio;
 
 export const ROLES = {
   admin: 'Administrador',
@@ -78,6 +83,16 @@ export const PERMISOS = {
   'empresa.editar': 'Editar datos de la empresa',
   'usuarios.gestionar': 'Gestionar usuarios y roles',
   'auditoria.ver': 'Ver y verificar la auditoría',
+  'honorarios.registrar': 'Registrar boletas de honorarios',
+  'remuneraciones.ver': 'Ver remuneraciones (sueldos)',
+  'remuneraciones.registrar': 'Registrar remuneraciones',
+  'conciliacion.ver': 'Ver conciliación bancaria',
+  'conciliacion.gestionar': 'Cargar cartolas y conciliar',
+  'rcv.ver': 'Ver RCV del SII',
+  'rcv.importar': 'Importar RCV del SII',
+  'sii.ver': 'Ver conexión con el SII',
+  'sii.configurar': 'Configurar conexión con el SII',
+  'sii.emitir': 'Emitir documentos electrónicos',
 };
 
 export const MESES_LARGOS = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];

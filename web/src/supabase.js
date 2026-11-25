@@ -29,3 +29,16 @@ function traducir(e) {
   if (/duplicate key/i.test(m)) return 'Ya existe un registro con esos datos.';
   return m;
 }
+
+// Llama una ruta de la Edge Function "cuadra" (operaciones con el SII o con secretos cifrados).
+export async function funcion(ruta, body) {
+  const { data, error } = await sb.functions.invoke(`cuadra/${ruta}`, { body });
+  if (error) {
+    let detalle = null;
+    try { detalle = await error.context.json(); } catch { /* sin cuerpo */ }
+    const e = new Error(detalle?.error ?? 'No se pudo conectar con el servicio');
+    e.detalle = detalle?.detalle;
+    throw e;
+  }
+  return data;
+}

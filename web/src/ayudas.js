@@ -219,6 +219,8 @@ export const AYUDAS = {
 
 // Ayuda específica para códigos del F29
 export const AYUDA_F29 = {
+  48: 'Impuesto único retenido a los trabajadores, según las remuneraciones del mes centralizadas y aprobadas.',
+  151: 'Retención de las boletas de honorarios recibidas y aprobadas en el mes (15,25 % en 2026).',
   538: 'Suma del IVA de ventas del mes (facturas, boletas y notas de débito), menos el IVA de las notas de crédito emitidas.',
   537: 'IVA de compras con derecho a crédito del mes, menos notas de crédito recibidas. No incluye el IVA no recuperable.',
   504: 'Remanente de crédito fiscal que quedó a favor en el mes anterior (código 77 del F29 previo).',

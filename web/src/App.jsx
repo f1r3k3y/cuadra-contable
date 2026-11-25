@@ -13,6 +13,10 @@ const F29 = lazy(() => import('./paginas/F29'));
 const Empresa = lazy(() => import('./paginas/Empresa'));
 const Tesoreria = lazy(() => import('./paginas/Tesoreria'));
 const Auditoria = lazy(() => import('./paginas/Auditoria'));
+const Honorarios = lazy(() => import('./paginas/Honorarios'));
+const Remuneraciones = lazy(() => import('./paginas/Remuneraciones'));
+const Conciliacion = lazy(() => import('./paginas/Conciliacion'));
+const Sii = lazy(() => import('./paginas/Sii'));
 
 // Enlace de invitación: https://…/#invitacion=TOKEN. Se guarda en la pestaña y se borra de la barra de direcciones.
 {
@@ -141,10 +145,14 @@ function Espacio({ usuario }) {
   const RUTAS = [
     ['/', 'Panel', 'panel.ver', <Panel />],
     ['/documentos', 'Compras y ventas', 'documentos.ver', <Documentos />],
+    ['/honorarios', 'Honorarios', 'documentos.ver', <Honorarios />],
+    ['/remuneraciones', 'Remuneraciones', 'remuneraciones.ver', <Remuneraciones />],
     ['/tesoreria', 'Tesorería', 'tesoreria.ver', <Tesoreria />],
+    ['/conciliacion', 'Conciliación bancaria', 'conciliacion.ver', <Conciliacion />],
     ['/asientos', 'Asientos', 'asientos.ver', <Asientos />],
     ['/reportes', 'Libros y estados', 'reportes.ver', <Reportes />],
     ['/f29', 'Propuesta F29', 'f29.ver', <F29 />],
+    ['/sii', 'SII y RCV', 'rcv.ver', <Sii />],
     ['/cuentas', 'Plan de cuentas', 'cuentas.ver', <Cuentas />],
     ['/auditoria', 'Auditoría', 'auditoria.ver', <Auditoria />],
     ['/empresa', 'Empresa y roles', null, <Empresa />],

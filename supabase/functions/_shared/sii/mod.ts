@@ -9,3 +9,4 @@ export * from './recepcion.ts';
 export * from './cliente.ts';
 export * from './f29.ts';
 export * from './rcv.ts';
+export * from './conectores.ts';

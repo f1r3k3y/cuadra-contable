@@ -1,7 +1,7 @@
 // Utilidades comunes de las Edge Functions: CORS, autenticación, autorización por rol y errores.
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
-const ORIGENES = (Deno.env.get('CUADRA_ORIGENES') ?? 'http://localhost:5173').split(',').map((s) => s.trim());
+const ORIGENES = (Deno.env.get('CUADRA_ORIGENES') ?? 'http://localhost:5173,https://cuadra-contable.pages.dev').split(',').map((s) => s.trim());
 
 export function cors(req: Request): Record<string, string> {
   const origin = req.headers.get('Origin') ?? '';
