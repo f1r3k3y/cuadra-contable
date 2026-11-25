@@ -1,9 +1,19 @@
 import { useEffect, useState } from 'react';
-import { sb } from './supabase';
+import { rpc, sb } from './supabase';
 import Turnstile from './Turnstile';
+import { ROLES } from './util';
 
 export function Login() {
-  const [modo, setModo] = useState('entrar');
+  const [invitacion, setInvitacion] = useState(null);
+  const [modo, setModo] = useState(sessionStorage.getItem('invitacion') ? 'registro' : 'entrar');
+  useEffect(() => {
+    const token = sessionStorage.getItem('invitacion');
+    if (!token) return;
+    rpc('ver_invitacion', { p_token: token }).then((i) => {
+      setInvitacion(i ?? { invalida: true });
+      if (i?.correo) setCorreo(i.correo);
+    }).catch(() => setInvitacion({ invalida: true }));
+  }, []);
   const [correo, setCorreo] = useState('');
   const [clave, setClave] = useState('');
   const [nombre, setNombre] = useState('');
@@ -23,10 +33,12 @@ export function Login() {
         if (error) throw new Error('Correo o contraseña incorrectos.');
       } else if (modo === 'registro') {
         if (clave.length < 12 || !/[a-zA-Z]/.test(clave) || !/\d/.test(clave)) throw new Error('Usa al menos 12 caracteres, con letras y números.');
-        const { error } = await sb.auth.signUp({ email: correo.trim(), password: clave, options: { data: { nombre: nombre.trim() }, captchaToken } });
+        const { data, error } = await sb.auth.signUp({ email: correo.trim(), password: clave, options: { data: { nombre: nombre.trim() }, captchaToken } });
         if (error) throw error;
-        setMsg({ ok: true, t: 'Te enviamos un correo para confirmar la cuenta. Luego entra con tu contraseña.' });
-        setModo('entrar');
+        if (!data.session) {
+          setMsg({ ok: true, t: 'Te enviamos un correo para confirmar la cuenta. Luego entra con tu contraseña.' });
+          setModo('entrar');
+        }
       } else {
         const { error } = await sb.auth.resetPasswordForEmail(correo.trim(), { redirectTo: window.location.origin, captchaToken });
         if (error) throw error;
@@ -45,6 +57,10 @@ export function Login() {
       <form className="tarjeta-acceso" onSubmit={enviar}>
         <div className="marca"><span className="logo">C</span> Cuadra Contable</div>
         <h1>{modo === 'entrar' ? 'Entrar' : modo === 'registro' ? 'Crear cuenta' : 'Recuperar contraseña'}</h1>
+        {invitacion && !invitacion.invalida && (invitacion.vigente
+          ? <p className="aviso ok" role="status">Te invitaron a <b>{invitacion.empresa}</b> como <b>{ROLES[invitacion.rol] ?? invitacion.rol}</b>. {modo === 'registro' ? 'Crea tu cuenta' : 'Entra'} con <b>{invitacion.correo}</b> para unirte.</p>
+          : <p className="aviso error" role="alert">Esta invitación ya no está disponible ({invitacion.estado === 'pendiente' ? 'venció' : invitacion.estado}). Pide una nueva al administrador.</p>)}
+        {invitacion?.invalida && <p className="aviso error" role="alert">El enlace de invitación no es válido. Revisa que lo hayas copiado completo.</p>}
         {modo === 'registro' && (
           <label>Nombre<input value={nombre} onChange={(e) => setNombre(e.target.value)} required maxLength={80} /></label>
         )}

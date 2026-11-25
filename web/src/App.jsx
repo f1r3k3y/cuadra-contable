@@ -14,6 +14,12 @@ const Empresa = lazy(() => import('./paginas/Empresa'));
 const Tesoreria = lazy(() => import('./paginas/Tesoreria'));
 const Auditoria = lazy(() => import('./paginas/Auditoria'));
 
+// Enlace de invitación: https://…/#invitacion=TOKEN. Se guarda en la pestaña y se borra de la barra de direcciones.
+{
+  const m = window.location.hash.match(/invitacion=([\w-]{20,})/);
+  if (m) { sessionStorage.setItem('invitacion', m[1]); window.history.replaceState(null, '', window.location.pathname); }
+}
+
 const Ctx = createContext(null);
 export const useEmpresa = () => useContext(Ctx);
 
@@ -77,8 +83,20 @@ function Espacio({ usuario }) {
   const [menu, setMenu] = useState(false);
   const [errorRol, setErrorRol] = useState(null);
   const [permisos, setPermisos] = useState(null);
+  const [aviso, setAviso] = useState(null);
 
   const cargar = useCallback(async () => {
+    const token = sessionStorage.getItem('invitacion');
+    if (token) {
+      sessionStorage.removeItem('invitacion');
+      try {
+        const info = await rpc('ver_invitacion', { p_token: token });
+        const id = await rpc('aceptar_invitacion', { p_token: token });
+        sessionStorage.setItem('empresa', id);
+        setActual(id);
+        setAviso({ ok: true, t: `Te uniste a ${info?.empresa ?? 'la empresa'} como ${ROLES[info?.rol] ?? info?.rol}.` });
+      } catch (e) { setAviso({ ok: false, t: 'No se pudo aceptar la invitación: ' + e.message }); }
+    }
     const filas = await q(sb.from('miembros').select('rol, rol_prueba, rol_prueba_desde, empresas(id, rut, razon_social, tasa_ppm)').eq('user_id', usuario.id));
     // El modo "ver como" vence a las 8 horas (la base aplica la misma regla)
     const vigente = (f) => f.rol_prueba && f.rol_prueba_desde && Date.now() - new Date(f.rol_prueba_desde).getTime() < 8 * 3600e3;
@@ -163,6 +181,7 @@ function Espacio({ usuario }) {
         <main>
           <button className="boton-menu" onClick={() => setMenu(!menu)} aria-label="Menú">☰ Menú</button>
           {errorRol && <p className="aviso error">{errorRol}</p>}
+          {aviso && <p className={aviso.ok ? 'aviso ok' : 'aviso error'} role={aviso.ok ? 'status' : 'alert'}>{aviso.t} <button className="enlace" onClick={() => setAviso(null)}>Cerrar</button></p>}
           {sel.rol_prueba && (
             <div className="franja-prueba" role="status">
               <span>Estás viendo la app como <b>{ROLES[sel.rol_prueba]}</b>. La base de datos aplica los permisos reales de ese rol.</span>

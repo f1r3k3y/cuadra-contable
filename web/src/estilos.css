@@ -210,3 +210,6 @@ label[data-ayuda] :is(input, select) { cursor: auto; }
 .turnstile { min-height: 65px; display: flex; justify-content: center; }
 .etiqueta.vencida { background: var(--error-fondo); color: var(--ladrillo); font-weight: 600; }
 .texto-vencido { color: var(--ladrillo); font-weight: 600; }
+.enlace-invitacion { border: 1px solid var(--linea); border-radius: 8px; padding: 12px; margin: 10px 0; display: grid; gap: 8px; }
+.enlace-invitacion input { width: 100%; font-family: ui-monospace, monospace; font-size: 12px; }
+a.boton { display: inline-flex; align-items: center; padding: 6px 12px; border: 1px solid var(--linea); border-radius: 6px; text-decoration: none; color: inherit; }

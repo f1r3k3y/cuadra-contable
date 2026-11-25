@@ -5,7 +5,7 @@ import { ROLES, TIPOS_DOC, csv, hoy, peso } from '../util';
 import { Dialogo, filaAccionable } from '../componentes';
 
 const MODULOS = {
-  accesos: 'Accesos', empresas: 'Empresa', miembros: 'Usuarios y roles', documentos: 'Compras y ventas', pagos: 'Tesorería',
+  accesos: 'Accesos', empresas: 'Empresa', miembros: 'Usuarios y roles', invitaciones: 'Invitaciones', documentos: 'Compras y ventas', pagos: 'Tesorería',
   asientos: 'Asientos', asiento_lineas: 'Líneas de asiento', cuentas: 'Plan de cuentas', configuracion_cuentas: 'Cuentas automáticas',
   periodos: 'Períodos', f29_declaraciones: 'F29', auxiliares: 'Clientes y proveedores', centros_costo: 'Centros de costo',
   dte_emitidos: 'DTE emitidos', dte_recibidos: 'DTE recibidos', certificados: 'Certificados', cafs: 'Folios (CAF)',
@@ -48,6 +48,11 @@ function describir(r) {
       if (cambio('rol')) return `Cambió rol de ${ROLES[a.rol] ?? a.rol} a ${ROLES[d.rol] ?? d.rol}`;
       if (cambio('rol_prueba')) return d.rol_prueba ? `Activó "ver la app como" ${ROLES[d.rol_prueba] ?? d.rol_prueba}` : 'Volvió a su rol real (Administrador)';
       return 'Modificó un usuario';
+    case 'invitaciones':
+      if (r.accion === 'INSERT') return `Invitó a ${d.correo} como ${ROLES[d.rol] ?? d.rol}`;
+      if (cambio('estado') && d.estado === 'aceptada') return `${d.correo} aceptó la invitación (${ROLES[d.rol] ?? d.rol})`;
+      if (cambio('estado') && d.estado === 'revocada') return `Revocó la invitación a ${d.correo}`;
+      return `Modificó la invitación a ${x.correo}`;
     case 'periodos':
       if (r.accion === 'INSERT') return `Abrió el período ${d.mes}/${d.anio}`;
       if (cambio('estado')) return `${d.estado === 'cerrado' ? 'Cerró' : 'Reabrió'} el período ${d.mes}/${d.anio}`;
@@ -60,7 +65,9 @@ function describir(r) {
       if (r.accion === 'INSERT') return `Creó la empresa ${d.razon_social}`;
       return `Modificó datos de la empresa: ${Object.keys(d).filter((k) => a[k] !== d[k] && JSON.stringify(a[k]) !== JSON.stringify(d[k])).map(bonito).join(', ')}`;
     case 'f29_declaraciones':
-      return r.accion === 'INSERT' ? `Guardó la propuesta F29 de ${d.periodo} (total ${peso(d.total_pagar)})` : `${ACCIONES[r.accion]} de propuesta F29 ${x.periodo}`;
+      if (r.accion === 'INSERT') return `Guardó la propuesta F29 de ${d.periodo} (total ${peso(d.total_pagar)})`;
+      if (cambio('estado') && d.estado === 'presentado') return `Marcó el F29 de ${d.periodo} como presentado${d.folio_sii ? ' (folio ' + d.folio_sii + ')' : ''}`;
+      return `${ACCIONES[r.accion]} de propuesta F29 ${x.periodo}`;
     case 'configuracion_cuentas': return 'Cambió las cuentas automáticas';
     case 'auxiliares': return `${ACCIONES[r.accion]} de ${x.razon_social} (${x.rut})`;
     default: return `${ACCIONES[r.accion] ?? r.accion} en ${MODULOS[r.tabla] ?? r.tabla}`;

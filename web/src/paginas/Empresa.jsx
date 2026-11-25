@@ -21,6 +21,8 @@ export default function Empresa() {
   const audita = permite('auditoria.ver');
   const [matriz, setMatriz] = useState(null);
   const [cierre, setCierre] = useState(null);
+  const [invitaciones, setInvitaciones] = useState([]);
+  const [enlace, setEnlace] = useState(null);
 
   const cargar = useCallback(async () => {
     const [d, m, p] = await Promise.all([
@@ -29,6 +31,10 @@ export default function Empresa() {
       q(sb.from('periodos').select('*').eq('empresa_id', empresa.id).order('anio', { ascending: false }).order('mes', { ascending: false })),
     ]);
     setDatos(d); setMiembros(m); setPeriodos(p);
+    if (permite('usuarios.gestionar')) {
+      setInvitaciones(await q(sb.from('invitaciones').select('id, correo, rol, estado, creado_en, expira_en').eq('empresa_id', empresa.id)
+        .order('creado_en', { ascending: false }).limit(50)));
+    }
     setMatriz(await rpc('matriz_permisos'));
   }, [empresa.id, audita]);
   useEffect(() => { cargar().catch((e) => setMsg({ ok: false, t: e.message })); }, [cargar]);
@@ -91,13 +97,47 @@ export default function Empresa() {
             ))}
           </tbody></table>
           {gestionaUsuarios && (
-            <form className="formulario en-fila" onSubmit={hacer(async () => { await rpc('agregar_miembro', { p_empresa: empresa.id, p_correo: invitar.correo, p_rol: invitar.rol }); setInvitar({ ...invitar, correo: '' }); }, 'Usuario agregado.')}>
-              <label>Correo del usuario<input type="email" value={invitar.correo} onChange={(e) => setInvitar({ ...invitar, correo: e.target.value })} required /></label>
+            <form className="formulario en-fila" onSubmit={hacer(async () => {
+              const token = await rpc('crear_invitacion', { p_empresa: empresa.id, p_correo: invitar.correo, p_rol: invitar.rol });
+              setEnlace({ url: `${window.location.origin}/#invitacion=${token}`, correo: invitar.correo.trim().toLowerCase(), rol: invitar.rol, copiado: false });
+              setInvitar({ ...invitar, correo: '' });
+            }, 'Invitación creada: copia el enlace y envíalo.')}>
+              <label>Correo de la persona<input type="email" value={invitar.correo} onChange={(e) => setInvitar({ ...invitar, correo: e.target.value })} required /></label>
               <label>Rol<select value={invitar.rol} onChange={(e) => setInvitar({ ...invitar, rol: e.target.value })}>{Object.entries(ROLES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>
-              <button className="primario">Agregar</button>
+              <button className="primario">Invitar</button>
             </form>
           )}
-          {gestionaUsuarios && <p className="chico">La persona debe haber creado su cuenta antes. Revisa abajo qué puede hacer cada rol.</p>}
+          {enlace && (
+            <div className="enlace-invitacion" role="status">
+              <p>Enlace para <b>{enlace.correo}</b> como <b>{ROLES[enlace.rol]}</b> (vence en 7 días, sirve una sola vez). Solo se muestra ahora: cópialo y envíalo.</p>
+              <input readOnly value={enlace.url} onFocus={(e) => e.target.select()} aria-label="Enlace de invitación" />
+              <div className="acciones">
+                <button className="primario" onClick={async () => { try { await navigator.clipboard.writeText(enlace.url); setEnlace({ ...enlace, copiado: true }); } catch { /* sin permiso de portapapeles */ } }}>{enlace.copiado ? 'Copiado ✓' : 'Copiar enlace'}</button>
+                <a className="boton" href={`https://wa.me/?text=${encodeURIComponent(`Te invito a probar Cuadra Contable (${datos.razon_social}). Crea tu cuenta con ${enlace.correo} aquí: ${enlace.url}`)}`} target="_blank" rel="noopener noreferrer">Enviar por WhatsApp</a>
+                <a className="boton" href={`mailto:${enlace.correo}?subject=${encodeURIComponent('Invitación a Cuadra Contable')}&body=${encodeURIComponent(`Hola,\n\nTe invito a probar Cuadra Contable en la empresa ${datos.razon_social}.\nCrea tu cuenta con este correo (${enlace.correo}) desde este enlace:\n${enlace.url}\n\nEl enlace vence en 7 días.`)}`}>Enviar por correo</a>
+                <button onClick={() => setEnlace(null)}>Listo</button>
+              </div>
+            </div>
+          )}
+          {gestionaUsuarios && invitaciones.some((i) => i.estado === 'pendiente') && (
+            <>
+              <h3>Invitaciones pendientes</h3>
+              <table className="tabla compacta"><tbody>
+                {invitaciones.filter((i) => i.estado === 'pendiente').map((i) => {
+                  const vencida = new Date(i.expira_en) < new Date();
+                  return (
+                    <tr key={i.id}><td>{i.correo}</td><td>{ROLES[i.rol]}</td>
+                      <td className="chico">{vencida ? 'vencida' : 'vence ' + new Date(i.expira_en).toLocaleDateString('es-CL')}</td>
+                      <td className="nw">
+                        <button className="enlace" onClick={() => setInvitar({ correo: i.correo, rol: i.rol })}>Nuevo enlace</button>{' '}
+                        <button className="enlace" onClick={hacer(() => rpc('revocar_invitacion', { p_id: i.id }), 'Invitación revocada.')}>Revocar</button>
+                      </td></tr>
+                  );
+                })}
+              </tbody></table>
+            </>
+          )}
+          {gestionaUsuarios && <p className="chico">La persona recibe un enlace, crea su cuenta con ese mismo correo y queda con el rol elegido. Revisa abajo qué puede hacer cada rol.</p>}
 
           </>}
           <h2>Períodos contables</h2>
