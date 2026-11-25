@@ -1,7 +1,8 @@
 // Utilidades comunes de las Edge Functions: CORS, autenticación, autorización por rol y errores.
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
-const ORIGENES = (Deno.env.get('CUADRA_ORIGENES') ?? 'http://localhost:5173,https://cuadra-contable.pages.dev').split(',').map((s) => s.trim());
+// El dominio publicado siempre se permite; CUADRA_ORIGENES agrega otros (p. ej. http://localhost:5173 o un dominio propio).
+const ORIGENES = [...new Set(['https://cuadra-contable.pages.dev', ...(Deno.env.get('CUADRA_ORIGENES') ?? 'http://localhost:5173').split(',').map((s) => s.trim()).filter(Boolean)])];
 
 export function cors(req: Request): Record<string, string> {
   const origin = req.headers.get('Origin') ?? '';

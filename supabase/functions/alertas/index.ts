@@ -5,7 +5,8 @@
 import { createClient } from '@supabase/supabase-js';
 import { armarCorreo, correoConfigurado, enviarCorreo, type Destinatario } from '../_shared/correo.ts';
 
-const ORIGENES = (Deno.env.get('CUADRA_ORIGENES') ?? 'http://localhost:5173,https://cuadra-contable.pages.dev').split(',').map((s) => s.trim());
+// El dominio publicado siempre se permite; CUADRA_ORIGENES agrega otros (p. ej. http://localhost:5173 o un dominio propio).
+const ORIGENES = [...new Set(['https://cuadra-contable.pages.dev', ...(Deno.env.get('CUADRA_ORIGENES') ?? 'http://localhost:5173').split(',').map((s) => s.trim()).filter(Boolean)])];
 function cors(req: Request) {
   const o = req.headers.get('Origin') ?? '';
   return {
