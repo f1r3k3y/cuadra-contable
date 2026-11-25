@@ -93,7 +93,7 @@ export function csv(nombre, filas) {
   const cols = Object.keys(filas[0]);
   const esc = (v) => {
     let s = v == null ? '' : String(v);
-    if (typeof v === 'string' && /^[=+\-@]/.test(s) && isNaN(Number(s))) s = "'" + s; // evita inyección de fórmulas en Excel
+    if (typeof v === 'string' && /^[=+\-@\t\r]/.test(s) && isNaN(Number(s))) s = "'" + s; // evita inyección de fórmulas en Excel
     return /[;"\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
   };
   const texto = [cols.join(';'), ...filas.map((f) => cols.map((c) => esc(f[c])).join(';'))].join('\n');

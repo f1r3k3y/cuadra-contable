@@ -27,7 +27,15 @@ export default function Asientos() {
     let c = sb.from('asientos').select('*').eq('empresa_id', empresa.id).gte('fecha', desde).lte('fecha', hasta)
       .order('fecha', { ascending: false }).order('numero', { ascending: false }).limit(300);
     if (estado) c = c.eq('estado', estado);
-    setLista(await q(c));
+    const filas = await q(c);
+    // Los borradores aún no tienen totales: se suman sus líneas para que el contador vea el monto antes de aprobar
+    const borradores = filas.filter((a) => a.estado === 'borrador').map((a) => a.id);
+    if (borradores.length) {
+      const ls = await q(sb.from('asiento_lineas').select('asiento_id, debe').in('asiento_id', borradores));
+      const suma = ls.reduce((m, l) => m.set(l.asiento_id, (m.get(l.asiento_id) ?? 0) + Number(l.debe)), new Map());
+      filas.forEach((a) => { if (a.estado === 'borrador') a.total_debe = suma.get(a.id) ?? 0; });
+    }
+    setLista(filas);
     const { count } = await sb.from('asientos').select('id', { count: 'exact', head: true }).eq('empresa_id', empresa.id).eq('estado', 'borrador');
     setPorAprobar(count ?? 0);
   }, [empresa.id, desde, hasta, estado]);
@@ -93,6 +101,7 @@ export default function Asientos() {
     try {
       const a = accion;
       if (a.tipo === 'contabilizar') await rpc('contabilizar_asiento', { p_id: a.id });
+      setMsg({ ok: true, t: { contabilizar: 'Asiento aprobado y contabilizado.', eliminar: 'Borrador eliminado.', anular: 'Asiento anulado.', reversar: 'Asiento reversado.' }[a.tipo] });
       if (a.tipo === 'eliminar') await q(sb.from('asientos').delete().eq('id', a.id));
       if (a.tipo === 'anular') await rpc('anular_asiento', { p_id: a.id, p_motivo: a.motivo });
       if (a.tipo === 'reversar') await rpc('reversar_asiento', { p_id: a.id, p_fecha: a.fecha, p_motivo: a.motivo });
@@ -139,8 +148,8 @@ export default function Asientos() {
                       <option value="">Elegir cuenta…</option>
                       {cuentas.map((c) => <option key={c.id} value={c.id}>{c.codigo} {c.nombre}</option>)}
                     </select></td>
-                    <td><input type="number" min="0" step="1" value={l.debe} onChange={(e) => cambiaLinea(i, 'debe', e.target.value)} aria-label="Debe" /></td>
-                    <td><input type="number" min="0" step="1" value={l.haber} onChange={(e) => cambiaLinea(i, 'haber', e.target.value)} aria-label="Haber" /></td>
+                    <td><CampoMonto valor={l.debe} alCambiar={(v) => cambiaLinea(i, 'debe', v)} aria-label="Debe" /></td>
+                    <td><CampoMonto valor={l.haber} alCambiar={(v) => cambiaLinea(i, 'haber', v)} aria-label="Haber" /></td>
                     <td><input value={l.glosa} onChange={(e) => cambiaLinea(i, 'glosa', e.target.value)} maxLength={200} aria-label="Detalle" /></td>
                     <td>{nuevo.lineas.length > 2 && <button className="enlace" onClick={() => setNuevo({ ...nuevo, lineas: nuevo.lineas.filter((_, j) => j !== i) })}>Quitar</button>}</td>
                   </tr>
@@ -168,7 +177,7 @@ export default function Asientos() {
               <Fragment key={a.id}>
                 <tr className={a.estado === 'anulado' ? 'anulado clic' : 'clic'} aria-expanded={abierto === a.id} {...filaAccionable(() => ver(a.id), 'Ver líneas del asiento')}>
                   <td className="n">{a.numero ?? '—'}</td><td className="nw">{fecha(a.fecha)}</td><td>{a.tipo}</td><td>{a.glosa}</td>
-                  <td className="n">{peso(a.total_debe)}</td><td><span className={'etiqueta ' + a.estado}>{a.estado}</span></td>
+                  <td className="n">{peso(a.total_debe)}</td><td><span className={'etiqueta ' + a.estado}>{{ borrador: 'Borrador', contabilizado: 'Contabilizado', anulado: 'Anulado' }[a.estado] ?? a.estado}</span></td>
                   <td className="nw" onClick={(e) => e.stopPropagation()}>
                     {a.estado === 'borrador' && contabiliza && <button className="enlace" onClick={() => setAccion({ tipo: 'contabilizar', id: a.id })}>Aprobar</button>}
                     {a.estado === 'borrador' && escribe && a.origen === 'manual' && <>

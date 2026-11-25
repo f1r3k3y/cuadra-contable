@@ -17,6 +17,8 @@ const AUTOMATICAS = [
   ['cuenta_clientes', 'Clientes'], ['cuenta_proveedores', 'Proveedores'], ['cuenta_ventas', 'Ventas afectas'],
   ['cuenta_ventas_exentas', 'Ventas exentas'], ['cuenta_iva_debito', 'IVA débito fiscal'], ['cuenta_iva_credito', 'IVA crédito fiscal'],
   ['cuenta_iva_no_recuperable', 'IVA no recuperable'], ['cuenta_gasto_defecto', 'Gasto por defecto (compras)'],
+  ['cuenta_ppm', 'Pagos provisionales mensuales (PPM)'], ['cuenta_impuestos_por_pagar', 'Impuestos por pagar (F29)'],
+  ['cuenta_resultado_ejercicio', 'Resultado del ejercicio'],
 ];
 
 export default function Cuentas() {
@@ -68,6 +70,7 @@ export default function Cuentas() {
   }
 
   const imputables = cuentas.filter((c) => c.imputable && c.activa);
+  const automaticas = new Set(conf ? AUTOMATICAS.map(([k]) => conf[k]).filter(Boolean) : []);
   const vista = cuentas.filter((c) => !filtro || (c.codigo + ' ' + c.nombre).toLowerCase().includes(filtro.toLowerCase()));
 
   return (
@@ -105,7 +108,9 @@ export default function Cuentas() {
                   <td className="nw">{c.codigo}</td>
                   <td style={{ paddingInlineStart: (c.nivel || 1) * 10 + 'px' }}>{c.nombre}{c.es_efectivo && <small> · efectivo</small>}</td>
                   <td>{bonito(c.tipo)}</td><td>{bonito(c.clasificacion)}</td>
-                  <td>{escribe && c.imputable && <button className="enlace" onClick={() => alternar(c)}>{c.activa ? 'Desactivar' : 'Activar'}</button>}</td>
+                  <td>{escribe && c.imputable && (automaticas.has(c.id) && c.activa
+                    ? <small className="chico" data-ayuda="Esta cuenta la usan los asientos automáticos. Para desactivarla, primero asigna otra en Cuentas automáticas.">automática</small>
+                    : <button className="enlace" onClick={() => alternar(c)}>{c.activa ? 'Desactivar' : 'Activar'}</button>)}</td>
                 </tr>
               ))}
             </tbody>

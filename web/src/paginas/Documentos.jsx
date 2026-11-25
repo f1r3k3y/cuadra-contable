@@ -4,7 +4,7 @@ import { q, rpc, sb } from '../supabase';
 import { TIPOS_DOC, csv, fecha, hoy, peso, rutFormato, rutValido } from '../util';
 import { Aviso, CampoMonto, Dialogo, SelectorMes } from '../componentes';
 
-const vacio = { tipo: '33', folio: '', fecha: hoy(), rut: '', razon: '', neto: '', exento: '', ivaNR: '', cuenta: '', glosa: '', referencia: '', condicion: '0', vencimiento: '' };
+const vacio = { tipo: '33', folio: '', fecha: hoy(), rut: '', razon: '', neto: '', exento: '', ivaNR: '', cuenta: '', glosa: '', referencia: '', condicion: '0', vencimiento: '', totalBoleta: '' };
 const CONDICIONES = [['0', 'Contado'], ['30', '30 días'], ['45', '45 días'], ['60', '60 días'], ['90', '90 días'], ['otra', 'Otra fecha']];
 const sumarDias = (iso, n) => { const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
 
@@ -31,9 +31,13 @@ export default function Documentos() {
   }, [empresa.id, op, mes]);
 
   useEffect(() => { cargar().catch((e) => setMsg({ ok: false, t: e.message })); }, [cargar]);
+  const [excluidas, setExcluidas] = useState(new Set());
   useEffect(() => {
-    q(sb.from('cuentas').select('id, codigo, nombre, tipo').eq('empresa_id', empresa.id).eq('imputable', true).eq('activa', true).order('codigo'))
+    q(sb.from('cuentas').select('id, codigo, nombre, tipo, clasificacion, es_efectivo, padre_id').eq('empresa_id', empresa.id).eq('imputable', true).eq('activa', true).order('codigo'))
       .then(setCuentas);
+    // Grupos que no son gasto ni activo comprable: clientes, impuestos por recuperar (IVA, PPM)
+    q(sb.from('configuracion_cuentas').select('cuenta_clientes, cuenta_iva_credito, cuenta_ppm').eq('empresa_id', empresa.id).maybeSingle())
+      .then((c) => setExcluidas(new Set(c ? Object.values(c).filter(Boolean) : []))).catch(() => {});
   }, [empresa.id]);
 
   const esNota = ['56', '61'].includes(f.tipo);
@@ -53,11 +57,14 @@ export default function Documentos() {
     : f.condicion === 'otra' ? (f.vencimiento || null)
     : f.condicion === '0' ? null : sumarDias(f.fecha, Number(f.condicion));
 
-  const opciones = cuentas.filter((c) => (op === 'venta' ? c.tipo === 'ingreso' : ['gasto', 'activo'].includes(c.tipo)));
-  const neto = Number(f.neto || 0), exento = Number(f.exento || 0);
+  const padresExcluidos = new Set(cuentas.filter((c) => excluidas.has(c.id)).map((c) => c.padre_id).filter(Boolean));
+  const opciones = cuentas.filter((c) => (op === 'venta' ? c.tipo === 'ingreso'
+    : c.tipo === 'gasto' || (c.tipo === 'activo' && !c.es_efectivo && !excluidas.has(c.id) && !padresExcluidos.has(c.padre_id))));
+  const esBoleta = f.tipo === '39';
+  const neto = esBoleta ? Math.round(Number(f.totalBoleta || 0) / 1.19) : Number(f.neto || 0), exento = Number(f.exento || 0);
   const iva = Math.round(neto * 0.19);
   const exentoTipo = ['34', '41'].includes(f.tipo);
-  const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
+  const set = (k) => (e) => { if (msg?.ok) setMsg(null); setF({ ...f, [k]: e.target.value }); };
 
   async function guardar(e) {
     e.preventDefault();
@@ -147,7 +154,8 @@ export default function Documentos() {
               aria-invalid={f.rut !== '' && !rutValido(f.rut)} />
           </label>
           <label className="ancho">Razón social<input value={f.razon} onChange={set('razon')} required maxLength={200} /></label>
-          {!exentoTipo && <label>Neto afecto<CampoMonto valor={f.neto} alCambiar={(v) => setF({ ...f, neto: v })} /></label>}
+          {esBoleta && <label>Total de la boleta (IVA incluido)<CampoMonto valor={f.totalBoleta ?? ''} alCambiar={(v) => setF({ ...f, totalBoleta: v })} /></label>}
+          {!exentoTipo && !esBoleta && <label>Neto afecto<CampoMonto valor={f.neto} alCambiar={(v) => setF({ ...f, neto: v })} /></label>}
           <label>Exento<CampoMonto valor={f.exento} alCambiar={(v) => setF({ ...f, exento: v })} /></label>
           {op === 'compra' && !exentoTipo && <label>IVA no recuperable<CampoMonto valor={f.ivaNR} max={iva} alCambiar={(v) => setF({ ...f, ivaNR: v })} /></label>}
           <label className="ancho">Cuenta de {op === 'venta' ? 'ingreso' : 'gasto o activo'} (opcional)
@@ -157,6 +165,7 @@ export default function Documentos() {
             </select>
           </label>
           <div className="resumen ancho">
+            {esBoleta && neto > 0 && <span>Neto: <b>{peso(neto)}</b></span>}
             <span>IVA 19 %: <b>{peso(exentoTipo ? 0 : iva)}</b></span>
             <span>Total: <b>{peso((exentoTipo ? 0 : neto + iva) + exento)}</b></span>
             {vencimiento && <span>Vence: <b>{fecha(vencimiento)}</b></span>}

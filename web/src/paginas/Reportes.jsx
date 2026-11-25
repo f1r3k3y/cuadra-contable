@@ -38,7 +38,7 @@ export default function Reportes() {
   return (
     <section className="hoja">
       <header className="cabecera">
-        <div><h1>{titulo}</h1><p className="chico">{empresa.razon_social} · {vista === 'bg' ? 'al ' + hasta : desde + ' a ' + hasta}</p></div>
+        <div><h1>{titulo}</h1><p className="chico">{empresa.razon_social} · {vista === 'bg' ? 'al ' + fecha(hasta) : fecha(desde) + ' a ' + fecha(hasta)}</p></div>
         <div className="filtros">
           {vista !== 'bg' && <label className="en-linea">Desde<input type="date" value={desde} onChange={(e) => setDesde(e.target.value)} /></label>}
           <label className="en-linea">{vista === 'bg' ? 'Al' : 'Hasta'}<input type="date" value={hasta} onChange={(e) => setHasta(e.target.value)} /></label>

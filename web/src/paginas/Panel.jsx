@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Bar, BarChart, CartesianGrid, Legend, Line, ComposedChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { useEmpresa } from '../App';
 import { rpc } from '../supabase';
-import { MESES, ROLES, num, peso } from '../util';
+import { MESES, ROLES, fecha, num, peso } from '../util';
 
 const C = { ingreso: '#1f6f5c', gasto: '#c8371e', linea: '#171513', debito: '#c8371e', credito: '#1f6f5c' };
 const miles = (v) => (Math.abs(v) >= 1e6 ? (v / 1e6).toFixed(1) + ' M' : Math.abs(v) >= 1e3 ? Math.round(v / 1e3) + ' mil' : v);
@@ -75,7 +75,7 @@ export default function Panel() {
       <header className="cabecera">
         <div>
           <h1>{k.resultado >= 0 ? 'Resultado ' + peso(k.resultado) : 'Pérdida ' + peso(-k.resultado)} en {anio}</h1>
-          <p className="chico">{empresa.razon_social} · al {m.periodo.hasta}</p>
+          <p className="chico">{empresa.razon_social} · al {fecha(m.periodo.hasta)}</p>
         </div>
         <label className="en-linea">Año
           <select value={anio} onChange={(e) => setAnio(Number(e.target.value))}>

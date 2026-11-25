@@ -46,6 +46,14 @@ export default function Tesoreria() {
     catch (err) { setAnular({ ...anular, error: err.message }); }
   }
 
+  // Efectivo va a Caja; los demás medios, al primer banco
+  const cuentaPara = (medio) => {
+    const cs = res?.cuentas ?? [];
+    const banco = cs.find((c) => /banco/i.test(c.nombre));
+    const cajaC = cs.find((c) => /caja/i.test(c.nombre));
+    return ((medio === 'efectivo' ? cajaC : banco) ?? cs[0])?.id ?? '';
+  };
+
   if (!res) return <section className="hoja">{msg ? <p className="aviso error">{msg.t}</p> : <p>Cargando tesorería…</p>}</section>;
   const caja = res.cuentas.reduce((s, c) => s + Number(c.saldo), 0);
   const tramos = vista === 'pagar' ? res.porPagar : res.porCobrar;
@@ -102,7 +110,7 @@ export default function Tesoreria() {
                     <td>{d.razon_social}<small> · {rutFormato(d.rut)}</small></td>
                     <td className="n">{peso(d.total)}</td><td className="n" title={Number(d.notas_credito) > 0 ? `Rebajado por notas de crédito: ${peso(d.notas_credito)}` : undefined}>{peso(d.saldo)}</td>
                     <td>{registra && d.asiento_estado === 'contabilizado' && (
-                      <button className="enlace" onClick={() => setDialogo({ doc: d, fecha: hoy(), monto: d.saldo, cuenta: res.cuentas[0]?.id ?? '', medio: 'transferencia', referencia: '' })}>
+                      <button className="enlace" onClick={() => setDialogo({ doc: d, fecha: hoy(), monto: String(Math.round(Number(d.saldo))), cuenta: cuentaPara('transferencia'), medio: 'transferencia', referencia: '' })}>
                         {vista === 'cobrar' ? 'Registrar cobro' : 'Registrar pago'}
                       </button>)}</td>
                   </tr>
@@ -142,11 +150,11 @@ export default function Tesoreria() {
             <h2>{vista === 'cobrar' ? 'Registrar cobro' : 'Registrar pago'}</h2>
             <p className="chico">{dialogo.doc.tipo} N° {dialogo.doc.folio} · {dialogo.doc.razon_social} · saldo {peso(dialogo.doc.saldo)}</p>
             <label>Fecha<input type="date" min={dialogo.doc.fecha} max={hoy()} value={dialogo.fecha} onChange={(e) => setDialogo({ ...dialogo, fecha: e.target.value })} required /></label>
-            <label>Monto<input type="number" min="1" max={dialogo.doc.saldo} step="1" value={dialogo.monto} onChange={(e) => setDialogo({ ...dialogo, monto: e.target.value })} required /></label>
+            <label>Monto<CampoMonto valor={dialogo.monto} max={Math.round(Number(dialogo.doc.saldo))} alCambiar={(v) => setDialogo({ ...dialogo, monto: v })} required /></label>
             <label>Cuenta de caja o banco<select value={dialogo.cuenta} onChange={(e) => setDialogo({ ...dialogo, cuenta: e.target.value })} required>
               {res.cuentas.map((c) => <option key={c.id} value={c.id}>{c.codigo} {c.nombre}</option>)}
             </select></label>
-            <label>Medio<select value={dialogo.medio} onChange={(e) => setDialogo({ ...dialogo, medio: e.target.value })}>
+            <label>Medio<select value={dialogo.medio} onChange={(e) => setDialogo({ ...dialogo, medio: e.target.value, cuenta: cuentaPara(e.target.value) })}>
               {Object.entries(MEDIOS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </select></label>
             <label>Referencia (N° de transferencia o cheque)<input value={dialogo.referencia} onChange={(e) => setDialogo({ ...dialogo, referencia: e.target.value })} maxLength={100} /></label>

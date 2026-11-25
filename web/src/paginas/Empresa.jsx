@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Aviso, CampoMonto } from '../componentes';
+import { Aviso, CampoMonto, Dialogo } from '../componentes';
+import { MisAutenticadores } from '../auth';
 import { useEmpresa } from '../App';
 import { q, rpc, sb } from '../supabase';
 import { MESES, PERMISOS, ROLES, ROL_DESC, rutFormato } from '../util';
@@ -19,6 +20,7 @@ export default function Empresa() {
   const reabre = permite('periodos.reabrir');
   const audita = permite('auditoria.ver');
   const [matriz, setMatriz] = useState(null);
+  const [cierre, setCierre] = useState(null);
 
   const cargar = useCallback(async () => {
     const [d, m, p] = await Promise.all([
@@ -105,7 +107,7 @@ export default function Empresa() {
               <tr key={p.anio * 100 + p.mes}>
                 <td>{MESES[p.mes - 1]} {p.anio}</td><td><span className={'etiqueta ' + (p.estado === 'cerrado' ? 'anulado' : 'contabilizado')}>{p.estado}</span></td>
                 <td>{(p.estado === 'abierto'
-                  ? cierra && <button className="enlace" onClick={hacer(() => rpc('cerrar_periodo', { p_empresa: empresa.id, p_anio: p.anio, p_mes: p.mes }), 'Período cerrado.')}>Cerrar</button>
+                  ? cierra && <button className="enlace" onClick={() => setCierre(p)}>Cerrar</button>
                   : reabre && <button className="enlace" onClick={hacer(() => rpc('reabrir_periodo', { p_empresa: empresa.id, p_anio: p.anio, p_mes: p.mes }), 'Período reabierto.')}>Reabrir</button>)}</td>
               </tr>
             ))}
@@ -127,6 +129,19 @@ export default function Empresa() {
           </div>
           <dl className="roles-desc">{Object.entries(ROL_DESC).map(([r, d]) => <div key={r}><dt>{ROLES[r]}</dt><dd>{d}</dd></div>)}</dl>
         </>
+      )}
+
+      <MisAutenticadores />
+
+      {cierre && (
+        <Dialogo titulo={`Cerrar ${MESES[cierre.mes - 1]} ${cierre.anio}`} alCerrar={() => setCierre(null)}>
+          <form onSubmit={async (e) => { e.preventDefault(); const p = cierre; setCierre(null); await hacer(() => rpc('cerrar_periodo', { p_empresa: empresa.id, p_anio: p.anio, p_mes: p.mes }), `${MESES[p.mes - 1]} ${p.anio} cerrado.`)(); }}>
+            <h2>Cerrar {MESES[cierre.mes - 1]} {cierre.anio}</h2>
+            <p>Un mes cerrado no acepta documentos, asientos, cobros ni anulaciones con esa fecha. Solo un administrador puede reabrirlo.</p>
+            <p className="chico">Si quedan borradores por aprobar en el mes, el cierre se rechaza: apruébalos o elimínalos antes.</p>
+            <div className="acciones"><button type="button" onClick={() => setCierre(null)}>Cancelar</button><button className="peligro">Cerrar el mes</button></div>
+          </form>
+        </Dialogo>
       )}
 
       {audita && <p className="nota">El registro completo de cambios (quién, qué, cuándo, desde qué IP) está en <Link to="/auditoria">Auditoría</Link>.</p>}
