@@ -64,17 +64,22 @@ export default function Documentos() {
   const neto = esBoleta ? Math.round(Number(f.totalBoleta || 0) / 1.19) : Number(f.neto || 0), exento = Number(f.exento || 0);
   const iva = Math.round(neto * 0.19);
   const exentoTipo = ['34', '41'].includes(f.tipo);
+  // Venta con boleta sin datos del comprador: consumidor final (RUT genérico del SII)
+  const consumidorFinal = op === 'venta' && ['39', '41'].includes(f.tipo);
+  const boletaRecibida = op === 'compra' && esBoleta;
   const set = (k) => (e) => { if (msg?.ok) setMsg(null); setF({ ...f, [k]: e.target.value }); };
 
   async function guardar(e) {
     e.preventDefault();
     setMsg(null);
-    if (!rutValido(f.rut)) return setMsg({ ok: false, t: 'El RUT no es válido.' });
+    const rut = consumidorFinal && !f.rut.trim() ? '66.666.666-6' : f.rut;
+    const razon = consumidorFinal && !f.razon.trim() ? 'Consumidor final' : f.razon;
+    if (!rutValido(rut)) return setMsg({ ok: false, t: 'El RUT no es válido.' });
     if (f.tipo === '61' && !f.referencia) return setMsg({ ok: false, t: 'Elige la factura o boleta que rebaja la nota de crédito.' });
     try {
       await rpc('registrar_documento', {
         p_empresa: empresa.id, p_operacion: op, p_tipo: Number(f.tipo), p_folio: Number(f.folio), p_fecha: f.fecha,
-        p_rut: f.rut, p_razon: f.razon, p_neto: exentoTipo ? 0 : neto, p_exento: exento,
+        p_rut: rut, p_razon: razon, p_neto: exentoTipo ? 0 : neto, p_exento: exento,
         p_iva_no_recuperable: op === 'compra' ? Number(f.ivaNR || 0) : 0, p_cuenta: f.cuenta || null, p_glosa: f.glosa || null,
         p_referencia: esNota && f.referencia ? f.referencia : null, p_vencimiento: vencimiento,
       });
@@ -150,14 +155,15 @@ export default function Documentos() {
             <label>Vencimiento<input type="date" min={f.fecha} value={f.vencimiento} onChange={set('vencimiento')} required /></label>
           )}
           <label>RUT {op === 'venta' ? 'cliente' : 'proveedor'}
-            <input value={f.rut} onChange={set('rut')} onBlur={() => setF({ ...f, rut: rutFormato(f.rut) })} placeholder={f.tipo === '39' ? '66.666.666-6' : ''} required
+            <input value={f.rut} onChange={set('rut')} onBlur={() => setF({ ...f, rut: rutFormato(f.rut) })} placeholder={consumidorFinal ? '66.666.666-6 (consumidor final)' : ''} required={!consumidorFinal}
               aria-invalid={f.rut !== '' && !rutValido(f.rut)} />
           </label>
-          <label className="ancho">Razón social<input value={f.razon} onChange={set('razon')} required maxLength={200} /></label>
+          <label className="ancho">Razón social<input value={f.razon} onChange={set('razon')} required={!consumidorFinal} placeholder={consumidorFinal ? 'Consumidor final' : ''} maxLength={200} /></label>
           {esBoleta && <label>Total de la boleta (IVA incluido)<CampoMonto valor={f.totalBoleta ?? ''} alCambiar={(v) => setF({ ...f, totalBoleta: v })} /></label>}
           {!exentoTipo && !esBoleta && <label>Neto afecto<CampoMonto valor={f.neto} alCambiar={(v) => setF({ ...f, neto: v })} /></label>}
           <label>Exento<CampoMonto valor={f.exento} alCambiar={(v) => setF({ ...f, exento: v })} /></label>
-          {op === 'compra' && !exentoTipo && <label>IVA no recuperable<CampoMonto valor={f.ivaNR} max={iva} alCambiar={(v) => setF({ ...f, ivaNR: v })} /></label>}
+          {boletaRecibida && <p className="chico ancho">Una boleta recibida no da derecho a crédito fiscal: todo su IVA se registra como gasto.</p>}
+          {op === 'compra' && !exentoTipo && !boletaRecibida && <label>IVA no recuperable<CampoMonto valor={f.ivaNR} max={iva} alCambiar={(v) => setF({ ...f, ivaNR: v })} /></label>}
           <label className="ancho">Cuenta de {op === 'venta' ? 'ingreso' : 'gasto o activo'} (opcional)
             <select value={f.cuenta} onChange={set('cuenta')}>
               <option value="">Por defecto de la empresa</option>

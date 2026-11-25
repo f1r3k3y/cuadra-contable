@@ -50,6 +50,10 @@ select t.afirmar((select count(*) from public.cuentas where empresa_id = (select
 select t.debe_fallar($$select public.registrar_pago((select id from public.documentos where empresa_id = (select v from t.ids where k = 'e5') and operacion = 'venta' and folio = 1), current_date, 999999,
   (select id from public.cuentas where empresa_id = (select v from t.ids where k = 'e5') and es_efectivo and imputable order by codigo limit 1))$$, '\$119\.000');
 
+-- Boleta recibida: su IVA no es crédito fiscal
+select public.registrar_documento((select v from t.ids where k = 'e5'), 'compra', 39, 77, current_date, '77.123.456-9', 'Proveedor', 20000);
+select t.afirmar((select iva_no_recuperable from public.documentos where empresa_id = (select v from t.ids where k = 'e5') and tipo = 39 and folio = 77) = 3800, 'boleta de compra sin crédito fiscal');
+
 reset role;
 \o
 \echo 'PRUEBAS DE CORRECCIONES PASARON'
